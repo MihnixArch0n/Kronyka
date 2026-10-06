@@ -1,0 +1,26 @@
+[versions]
+kotlin = "2.4.20"
+springBoot = "4.1.1"
+
+[libraries]
+h2 = { module = "com.h2database:h2" }
+jackson-moduleKotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
+junit-platformLauncher = { module = "org.junit.platform:junit-platform-launcher" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+kotlin-testJunit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
+postgresql = { module = "org.postgresql:postgresql" }
+springBoot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
+springBoot-h2console = { module = "org.springframework.boot:spring-boot-h2console" }
+springBoot-starterActuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+springBoot-starterActuatorTest = { module = "org.springframework.boot:spring-boot-starter-actuator-test" }
+springBoot-starterSecurity = { module = "org.springframework.boot:spring-boot-starter-security" }
+springBoot-starterSecurityTest = { module = "org.springframework.boot:spring-boot-starter-security-test" }
+springBoot-starterValidation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+springBoot-starterValidationTest = { module = "org.springframework.boot:spring-boot-starter-validation-test" }
+springBoot-starterWebmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+springBoot-starterWebmvcTest = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
