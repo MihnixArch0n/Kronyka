@@ -19,6 +19,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.projectlombok:lombok")
     val springBootBom = platform(libs.springBoot.dependencies)
     implementation(springBootBom)
 
