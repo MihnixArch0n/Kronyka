@@ -4,3 +4,8 @@ spring:
   threads:
     virtual:
       enabled: true
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/kronyka}
+    username: ${SPRING_DATASOURCE_USERNAME:kronyka}
+    password: ${SPRING_DATASOURCE_PASSWORD:kronyka_secret}
+    driver-class-name: org.postgresql.Driver

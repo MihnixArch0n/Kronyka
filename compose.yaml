@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: kronyka-postgres
+    environment:
+      POSTGRES_DB: kronyka
+      POSTGRES_USER: kronyka
+      POSTGRES_PASSWORD: kronyka_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kronyka -d kronyka"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: kronyka-app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kronyka
+      SPRING_DATASOURCE_USERNAME: kronyka
+      SPRING_DATASOURCE_PASSWORD: kronyka_secret
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
