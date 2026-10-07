@@ -9,3 +9,7 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:kronyka}
     password: ${SPRING_DATASOURCE_PASSWORD:kronyka_secret}
     driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true

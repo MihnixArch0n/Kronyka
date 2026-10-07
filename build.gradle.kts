@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.spring.boot)
+    kotlin("plugin.lombok") version "2.4.20"
+    kotlin("plugin.jpa") version "2.4.20"
 }
 
 group = "example"
@@ -20,6 +22,7 @@ repositories {
 
 dependencies {
     implementation("org.projectlombok:lombok")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     val springBootBom = platform(libs.springBoot.dependencies)
     implementation(springBootBom)
 
@@ -43,6 +46,7 @@ dependencies {
     testImplementation(libs.springBoot.starterWebmvcTest)
     testImplementation(libs.kotlin.testJunit5)
     testRuntimeOnly(libs.junit.platformLauncher)
+    testImplementation(kotlin("test"))
 }
 
 kotlin {
