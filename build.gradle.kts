@@ -28,12 +28,10 @@ dependencies {
 
     implementation(libs.springBoot.h2console)
     implementation(libs.springBoot.starterActuator)
-    implementation(libs.springBoot.starterJdbc)
     implementation(libs.springBoot.starterSecurity)
     implementation(libs.springBoot.starterValidation)
     implementation(libs.springBoot.starterWebmvc)
-    implementation(libs.exposed.core)
-    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.springBoot4Starter)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.javaTime)
     implementation(libs.kotlin.reflect)
@@ -51,7 +49,7 @@ dependencies {
 
 kotlin {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+        freeCompilerArgs.addAll("-Xjsr305=strict")
     }
 }
 

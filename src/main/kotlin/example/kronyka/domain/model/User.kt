@@ -1,27 +1,19 @@
 package example.kronyka.domain.model
 
-import jakarta.persistence.*
-import java.time.LocalDateTime
-import java.util.UUID
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.javatime.datetime
 
-@Entity
-@Table(name = "users")
-class User(
+object Users : Table("users") {
 
-    @Column(name = "username", nullable = false, unique = true, length = 50)
-    var username: String,
+    val id = integer("id").autoIncrement()
 
-    @Column(name = "password_hash", nullable = false, length = 100)
-    var passwordHash: String,
+    val username = varchar("username", 50).uniqueIndex()
 
-    @Column(name = "full_name", nullable = false, length = 100)
-    var fullName: String,
+    val passwordHash = varchar("password_hash", 100)
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id", updatable = false, nullable = false)
-    val id: Int? = 0,
+    val fullName = varchar("full_name", 100)
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    var createdAt: LocalDateTime = LocalDateTime.now()
-)
+    val createdAt = datetime("created_at")
+
+    override val primaryKey = PrimaryKey(id)
+}
