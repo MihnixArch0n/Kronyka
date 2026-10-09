@@ -40,6 +40,9 @@ dependencies {
     testImplementation(libs.springBoot.starterWebmvcTest)
     testImplementation(libs.kotlin.testJunit5)
     testRuntimeOnly(libs.junit.platformLauncher)
+    testImplementation(platform(libs.kotest.bom))
+    testImplementation(libs.kotest.runnerJunit5)
+    testImplementation(libs.kotest.assertionsCore)
 }
 
 kotlin {

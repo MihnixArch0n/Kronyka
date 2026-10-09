@@ -2,6 +2,7 @@
 kotlin = "2.4.20"
 exposed = "1.5.0"
 springBoot = "4.1.1"
+kotest = "6.2.5"
 
 [libraries]
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
@@ -12,6 +13,9 @@ exposed-springBoot4Starter = { module = "org.jetbrains.exposed:exposed-spring-bo
 h2 = { module = "com.h2database:h2" }
 jackson-moduleKotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
 junit-platformLauncher = { module = "org.junit.platform:junit-platform-launcher" }
+kotest-bom = { module = "io.kotest:kotest-bom", version.ref = "kotest" }
+kotest-runnerJunit5 = { module = "io.kotest:kotest-runner-junit5" }
+kotest-assertionsCore = { module = "io.kotest:kotest-assertions-core" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
 kotlin-testJunit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
 postgresql = { module = "org.postgresql:postgresql" }
