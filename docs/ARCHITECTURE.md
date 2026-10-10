@@ -124,3 +124,14 @@ sequenceDiagram
    - A unique constraint on `(auction_id, bidder_id)` allows bidders to update their deposit commitments safely without race conditions.
 3. **Stateless Step Math**:
    - Price calculation is completely functional and stateless in memory, removing background timer updates and database write amplification.
+
+---
+
+## 4. Multi-Layer Testing Architecture
+
+| Layer | Runner / Framework | Style / Annotations | Assertions | Isolation Strategy |
+| :--- | :--- | :--- | :--- | :--- |
+| **Domain** | **Kotest** | `BehaviorSpec` (BDD scenarios)<br>`FunSpec` (math/hashing) | **Kotest Assertions** (`shouldBe`, `shouldThrow`) | In-memory fake repositories (`mutableMapOf`). Zero framework context. |
+| **Presentation** | **JUnit 5** | `@Test`, `@Nested`, `@WebMvcTest` | **Kotest Assertions** (`shouldBe`, `shouldNotBeNull`) | Spring `MockMvc` + MockK (`@MockkBean`) mocking domain services. |
+| **Infrastructure** | **JUnit 5** | `@Test`, `@BeforeEach` | **Kotest Assertions** (`shouldBe`, `shouldHaveSize`) | H2 In-Memory / Testcontainers PostgreSQL with transaction rollback. |
+

@@ -37,6 +37,11 @@
 5. **Exposed Upsert for Vickrey Bids**:
    - Enforce `UNIQUE(auction_id, bidder_id)` and use atomic upserts (`insert ... onConflict` / `upsert`) to prevent race conditions on repeat commitments.
 
+6. **Layered Testing Conventions (Kotest + JUnit 5)**:
+   - `domain/`: Tested exclusively with pure **Kotest Specs** (`BehaviorSpec`, `FunSpec`) and in-memory fake repositories. No Spring Boot context.
+   - `presentation/` & `infrastructure/`: Tested with **JUnit 5 (`@Test`)** to maintain full compatibility with Spring test slices (`@WebMvcTest`, `@SpringBootTest`) and database rollback transactions.
+   - Assertions: **Kotest Assertions (`shouldBe`, `shouldNotBeNull`, `shouldThrow`)** are used universally across ALL layers.
+
 ---
 
 ## 3. Detailed Specifications Index (`docs/llm/`)
