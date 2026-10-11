@@ -22,7 +22,7 @@ class AuthController(
     @PostMapping("/register")
     fun register(
         @Valid @RequestBody request: RegisterRequest
-    ): ResponseEntity<RegisterResponse> = runBlocking {
+    ): ResponseEntity<ApiResponse<RegisterResponse>> = runBlocking {
         val user = authService.register(
             username = request.username!!,
             password = request.password!!,
@@ -33,13 +33,15 @@ class AuthController(
             username = user.username,
             fullName = user.fullName
         )
-        ResponseEntity.status(HttpStatus.CREATED).body(response)
+        ResponseEntity.status(HttpStatus.CREATED).body(
+            ApiResponse.success(result = response, message = "User registered successfully")
+        )
     }
 
     @PostMapping("/login")
     fun login(
         @Valid @RequestBody request: LoginRequest
-    ): ResponseEntity<LoginResponse> = runBlocking {
+    ): ResponseEntity<ApiResponse<LoginResponse>> = runBlocking {
         val user = authService.login(
             username = request.username!!,
             password = request.password!!
@@ -54,13 +56,15 @@ class AuthController(
                 username = user.username
             )
         )
-        ResponseEntity.ok(response)
+        ResponseEntity.ok(
+            ApiResponse.success(result = response, message = "Login successful")
+        )
     }
 
     @GetMapping("/me")
     fun getCurrentUser(
         @RequestHeader(value = "Authorization", required = false) authHeader: String?
-    ): ResponseEntity<UserProfileResponse> = runBlocking {
+    ): ResponseEntity<ApiResponse<UserProfileResponse>> = runBlocking {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw BadCredentialsException("Missing or invalid Authorization header")
         }
@@ -80,6 +84,8 @@ class AuthController(
             fullName = user.fullName,
             createdAt = user.createdAt
         )
-        ResponseEntity.ok(response)
+        ResponseEntity.ok(
+            ApiResponse.success(result = response, message = "User profile retrieved successfully")
+        )
     }
 }

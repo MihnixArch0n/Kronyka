@@ -2,124 +2,96 @@ package example.kronyka.presentation.advice
 
 import example.kronyka.domain.model.BadCredentialsException
 import example.kronyka.domain.model.UserAlreadyExistsException
+import example.kronyka.presentation.dto.ApiResponse
+import example.kronyka.presentation.dto.ErrorCode
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.dao.DataIntegrityViolationException
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
-import java.time.Instant
 
-data class ErrorResponse(
-    val timestamp: Instant = Instant.now(),
-    val status: Int,
-    val error: String,
-    val message: String,
-    val path: String
-)
+class AppException(
+    val errorCode: ErrorCode,
+    override val message: String = errorCode.message
+) : RuntimeException(message)
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
+    @ExceptionHandler(AppException::class)
+    fun handleAppException(
+        ex: AppException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ex.errorCode
+        val response = ApiResponse.error<Unit>(errorCode, ex.message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
+    }
+
     @ExceptionHandler(UserAlreadyExistsException::class)
     fun handleUserAlreadyExists(
-        ex: UserAlreadyExistsException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.CONFLICT.value(),
-            error = "USER_ALREADY_EXISTS",
-            message = ex.message ?: "User already exists",
-            path = request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse)
+        ex: UserAlreadyExistsException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.USER_ALREADY_EXISTS
+        val response = ApiResponse.error<Unit>(errorCode, ex.message ?: errorCode.message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 
     @ExceptionHandler(DataIntegrityViolationException::class)
     fun handleDataIntegrityViolation(
-        ex: DataIntegrityViolationException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.CONFLICT.value(),
-            error = "CONFLICT",
-            message = "Resource already exists or constraint violation occurred",
-            path = request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse)
+        ex: DataIntegrityViolationException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.DATA_INTEGRITY_VIOLATION
+        val response = ApiResponse.error<Unit>(errorCode, errorCode.message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 
     @ExceptionHandler(BadCredentialsException::class)
     fun handleBadCredentials(
-        ex: BadCredentialsException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.UNAUTHORIZED.value(),
-            error = "UNAUTHORIZED",
-            message = ex.message ?: "Invalid username or password",
-            path = request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse)
+        ex: BadCredentialsException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.INVALID_CREDENTIALS
+        val response = ApiResponse.error<Unit>(errorCode, ex.message ?: errorCode.message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationException(
-        ex: MethodArgumentNotValidException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
+        ex: MethodArgumentNotValidException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.VALIDATION_FAILED
         val message = ex.bindingResult.fieldErrors
             .joinToString("; ") { "${it.field}: ${it.defaultMessage}" }
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.BAD_REQUEST.value(),
-            error = "VALIDATION_FAILED",
-            message = message,
-            path = request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse)
+        val response = ApiResponse.error<Unit>(errorCode, message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleHttpMessageNotReadable(
-        ex: HttpMessageNotReadableException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.BAD_REQUEST.value(),
-            error = "MALFORMED_JSON",
-            message = ex.mostSpecificCause.message ?: "Malformed JSON request body or missing required fields",
-            path = request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse)
+        ex: HttpMessageNotReadableException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.MALFORMED_JSON
+        val message = ex.mostSpecificCause.message ?: errorCode.message
+        val response = ApiResponse.error<Unit>(errorCode, message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgument(
-        ex: IllegalArgumentException,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.BAD_REQUEST.value(),
-            error = "BAD_REQUEST",
-            message = ex.message ?: "Invalid request argument",
-            path = request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse)
+        ex: IllegalArgumentException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.BAD_REQUEST
+        val response = ApiResponse.error<Unit>(errorCode, ex.message ?: errorCode.message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 
     @ExceptionHandler(Exception::class)
     fun handleGenericException(
-        ex: Exception,
-        request: HttpServletRequest
-    ): ResponseEntity<ErrorResponse> {
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            error = "INTERNAL_SERVER_ERROR",
-            message = ex.message ?: "An unexpected error occurred",
-            path = request.requestURI
-        )
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse)
+        ex: Exception
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.UNCATEGORIZED_EXCEPTION
+        val response = ApiResponse.error<Unit>(errorCode, ex.message ?: errorCode.message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 }
