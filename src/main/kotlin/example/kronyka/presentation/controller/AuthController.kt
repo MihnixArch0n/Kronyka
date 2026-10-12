@@ -34,7 +34,7 @@ class AuthController(
             fullName = user.fullName
         )
         ResponseEntity.status(HttpStatus.CREATED).body(
-            ApiResponse.success(result = response, message = "User registered successfully")
+            ApiResponse.success(result = response)
         )
     }
 
@@ -57,7 +57,7 @@ class AuthController(
             )
         )
         ResponseEntity.ok(
-            ApiResponse.success(result = response, message = "Login successful")
+            ApiResponse.success(result = response)
         )
     }
 
@@ -85,7 +85,8 @@ class AuthController(
             createdAt = user.createdAt
         )
         ResponseEntity.ok(
-            ApiResponse.success(result = response, message = "User profile retrieved successfully")
+            ApiResponse.success(result = response)
         )
     }
+
 }

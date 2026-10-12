@@ -37,10 +37,12 @@ class AuthControllerTest {
         )
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.code").value(1000))
-            .andExpect(jsonPath("$.message").value("User registered successfully"))
+            .andExpect(jsonPath("$.message").doesNotExist())
             .andExpect(jsonPath("$.result.username").value("alice_api_test"))
             .andExpect(jsonPath("$.result.full_name").value("Alice Wonderland"))
             .andExpect(jsonPath("$.result.user_id").isNotEmpty)
+            .andExpect(jsonPath("$.result.message").doesNotExist())
+
 
         val loginJson = """
             {
@@ -56,6 +58,7 @@ class AuthControllerTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.code").value(1000))
+            .andExpect(jsonPath("$.message").doesNotExist())
             .andExpect(jsonPath("$.result.access_token").isNotEmpty)
             .andExpect(jsonPath("$.result.token_type").value("Bearer"))
             .andExpect(jsonPath("$.result.expires_in").value(86400))
@@ -70,6 +73,7 @@ class AuthControllerTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.code").value(1000))
+            .andExpect(jsonPath("$.message").doesNotExist())
             .andExpect(jsonPath("$.result.username").value("alice_api_test"))
             .andExpect(jsonPath("$.result.full_name").value("Alice Wonderland"))
     }
@@ -91,8 +95,10 @@ class AuthControllerTest {
         )
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.code").value(1000))
+            .andExpect(jsonPath("$.message").doesNotExist())
             .andExpect(jsonPath("$.result.username").value("camel_case_api_user"))
             .andExpect(jsonPath("$.result.full_name").value("Camel Case User"))
+
     }
 
     @Test

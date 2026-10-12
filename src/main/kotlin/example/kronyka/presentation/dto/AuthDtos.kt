@@ -27,9 +27,9 @@ data class RegisterResponse(
     val userId: UUID,
     val username: String,
     @JsonProperty("full_name")
-    val fullName: String,
-    val message: String = "User registered successfully"
+    val fullName: String
 )
+
 
 data class LoginRequest(
     @field:NotBlank(message = "Username is required")
