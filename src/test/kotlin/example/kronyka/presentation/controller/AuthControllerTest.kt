@@ -1,4 +1,4 @@
-package example.kronyka.presentation.controller
+ package example.kronyka.presentation.controller
 
 import com.jayway.jsonpath.JsonPath
 import org.hamcrest.Matchers.containsString

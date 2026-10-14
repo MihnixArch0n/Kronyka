@@ -1,9 +1,9 @@
 package example.kronyka.domain.service
 
-import example.kronyka.domain.model.BadCredentialsException
+import example.kronyka.domain.model.AppException
 import example.kronyka.domain.model.User
-import example.kronyka.domain.model.UserAlreadyExistsException
 import example.kronyka.domain.repository.UserRepository
+import example.kronyka.presentation.dto.ErrorCode
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 
@@ -22,7 +22,7 @@ class AuthServiceImpl(
         require(trimmedFullName.isNotBlank()) { "Full name cannot be blank" }
 
         if (userRepository.existsByUsername(trimmedUsername)) {
-            throw UserAlreadyExistsException("Username '$trimmedUsername' is already taken")
+            throw AppException(ErrorCode.USER_ALREADY_EXISTS, "Username '$trimmedUsername' is already taken")
         }
 
         val passwordHash = passwordEncoder.encode(password)
@@ -42,11 +42,12 @@ class AuthServiceImpl(
         require(password.isNotBlank()) { "Password cannot be blank" }
 
         val user = userRepository.findByUsername(trimmedUsername)
-            ?: throw BadCredentialsException("Invalid username or password")
+            ?: throw AppException(ErrorCode.INVALID_CREDENTIALS)
 
         if (!passwordEncoder.matches(password, user.passwordHash)) {
-            throw BadCredentialsException("Invalid username or password")
+            throw AppException(ErrorCode.INVALID_CREDENTIALS)
         }
+
 
         return user
     }

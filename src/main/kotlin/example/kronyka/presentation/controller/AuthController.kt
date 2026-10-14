@@ -1,7 +1,8 @@
 package example.kronyka.presentation.controller
 
-import example.kronyka.domain.model.BadCredentialsException
+import example.kronyka.domain.model.AppException
 import example.kronyka.domain.repository.UserRepository
+
 import example.kronyka.domain.service.AuthService
 import example.kronyka.infrastructure.security.JwtTokenProvider
 import example.kronyka.presentation.dto.*
@@ -66,17 +67,18 @@ class AuthController(
         @RequestHeader(value = "Authorization", required = false) authHeader: String?
     ): ResponseEntity<ApiResponse<UserProfileResponse>> = runBlocking {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw BadCredentialsException("Missing or invalid Authorization header")
+            throw AppException(ErrorCode.UNAUTHENTICATED, "Missing or invalid Authorization header")
         }
         val token = authHeader.removePrefix("Bearer ").trim()
         if (!jwtTokenProvider.validateToken(token)) {
-            throw BadCredentialsException("Expired or invalid token")
+            throw AppException(ErrorCode.UNAUTHENTICATED, "Expired or invalid token")
         }
         val userId = jwtTokenProvider.getUserIdFromToken(token)
-            ?: throw BadCredentialsException("Invalid token payload")
+            ?: throw AppException(ErrorCode.UNAUTHENTICATED, "Invalid token payload")
 
         val user = userRepository.findById(userId)
-            ?: throw BadCredentialsException("User not found")
+            ?: throw AppException(ErrorCode.USER_NOT_FOUND, "User not found")
+
 
         val response = UserProfileResponse(
             userId = user.id,

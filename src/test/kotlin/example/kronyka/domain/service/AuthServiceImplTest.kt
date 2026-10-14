@@ -1,9 +1,10 @@
 package example.kronyka.domain.service
 
-import example.kronyka.domain.model.BadCredentialsException
+import example.kronyka.domain.model.AppException
 import example.kronyka.domain.model.User
-import example.kronyka.domain.model.UserAlreadyExistsException
 import example.kronyka.domain.repository.UserRepository
+import example.kronyka.presentation.dto.ErrorCode
+
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -45,14 +46,14 @@ class AuthServiceImplTest {
     }
 
     @Test
-    fun `register throws UserAlreadyExistsException when username is taken`() = runBlocking {
+    fun `register throws AppException when username is taken`() = runBlocking {
         authService.register(
             username = "alice",
             password = "Password123@",
             fullName = "Alice First"
         )
 
-        val exception = assertThrows<UserAlreadyExistsException> {
+        val exception = assertThrows<AppException> {
             runBlocking {
                 authService.register(
                     username = "alice",
@@ -62,6 +63,7 @@ class AuthServiceImplTest {
             }
         }
 
+        assertEquals(ErrorCode.USER_ALREADY_EXISTS, exception.errorCode)
         assertTrue(exception.message!!.contains("alice"))
     }
 
@@ -95,8 +97,8 @@ class AuthServiceImplTest {
     }
 
     @Test
-    fun `login throws BadCredentialsException when user not found`() {
-        val exception = assertThrows<BadCredentialsException> {
+    fun `login throws AppException when user not found`() {
+        val exception = assertThrows<AppException> {
             runBlocking {
                 authService.login(
                     username = "non_existent_user",
@@ -104,18 +106,19 @@ class AuthServiceImplTest {
                 )
             }
         }
+        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.errorCode)
         assertEquals("Invalid username or password", exception.message)
     }
 
     @Test
-    fun `login throws BadCredentialsException when password does not match`() = runBlocking {
+    fun `login throws AppException when password does not match`() = runBlocking {
         authService.register(
             username = "charlie",
             password = "CorrectPassword123@",
             fullName = "Charlie Brown"
         )
 
-        val exception = assertThrows<BadCredentialsException> {
+        val exception = assertThrows<AppException> {
             runBlocking {
                 authService.login(
                     username = "charlie",
@@ -123,8 +126,10 @@ class AuthServiceImplTest {
                 )
             }
         }
+        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.errorCode)
         assertEquals("Invalid username or password", exception.message)
     }
+
 
     @Test
     fun `login throws IllegalArgumentException when credentials are blank`() {
