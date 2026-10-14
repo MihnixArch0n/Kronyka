@@ -8,6 +8,7 @@ exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "e
 exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
 exposed-javaTime = { module = "org.jetbrains.exposed:exposed-java-time", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-springBoot4Starter = { module = "org.jetbrains.exposed:exposed-spring-boot4-starter", version.ref = "exposed" }
 h2 = { module = "com.h2database:h2" }
 jackson-moduleKotlin = { module = "tools.jackson.module:jackson-module-kotlin" }
 junit-platformLauncher = { module = "org.junit.platform:junit-platform-launcher" }
@@ -18,7 +19,6 @@ springBoot-dependencies = { module = "org.springframework.boot:spring-boot-depen
 springBoot-h2console = { module = "org.springframework.boot:spring-boot-h2console" }
 springBoot-starterActuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 springBoot-starterActuatorTest = { module = "org.springframework.boot:spring-boot-starter-actuator-test" }
-springBoot-starterJdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
 springBoot-starterSecurity = { module = "org.springframework.boot:spring-boot-starter-security" }
 springBoot-starterSecurityTest = { module = "org.springframework.boot:spring-boot-starter-security-test" }
 springBoot-starterValidation = { module = "org.springframework.boot:spring-boot-starter-validation" }
