@@ -1,7 +1,6 @@
 package example.kronyka.presentation.advice
 
-import example.kronyka.domain.model.BadCredentialsException
-import example.kronyka.domain.model.UserAlreadyExistsException
+import example.kronyka.domain.model.AppException
 import example.kronyka.presentation.dto.ApiResponse
 import example.kronyka.presentation.dto.ErrorCode
 import jakarta.servlet.http.HttpServletRequest
@@ -12,11 +11,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
-class AppException(
-    val errorCode: ErrorCode,
-    override val message: String = errorCode.message
-) : RuntimeException(message)
-
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
@@ -25,15 +19,6 @@ class GlobalExceptionHandler {
         ex: AppException
     ): ResponseEntity<ApiResponse<Unit>> {
         val errorCode = ex.errorCode
-        val response = ApiResponse.error<Unit>(errorCode, ex.message)
-        return ResponseEntity.status(errorCode.httpStatus).body(response)
-    }
-
-    @ExceptionHandler(UserAlreadyExistsException::class)
-    fun handleUserAlreadyExists(
-        ex: UserAlreadyExistsException
-    ): ResponseEntity<ApiResponse<Unit>> {
-        val errorCode = ErrorCode.USER_ALREADY_EXISTS
         val response = ApiResponse.error<Unit>(errorCode, ex.message ?: errorCode.message)
         return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
@@ -47,14 +32,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 
-    @ExceptionHandler(BadCredentialsException::class)
-    fun handleBadCredentials(
-        ex: BadCredentialsException
-    ): ResponseEntity<ApiResponse<Unit>> {
-        val errorCode = ErrorCode.INVALID_CREDENTIALS
-        val response = ApiResponse.error<Unit>(errorCode, ex.message ?: errorCode.message)
-        return ResponseEntity.status(errorCode.httpStatus).body(response)
-    }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationException(
