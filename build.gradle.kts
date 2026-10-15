@@ -45,6 +45,9 @@ dependencies {
     testImplementation(libs.kotlin.testJunit5)
     testRuntimeOnly(libs.junit.platformLauncher)
     testImplementation(kotlin("test"))
+    testImplementation(platform(libs.kotest.bom))
+    testImplementation(libs.kotest.runnerJunit5)
+    testImplementation(libs.kotest.assertionsCore)
 }
 
 kotlin {
