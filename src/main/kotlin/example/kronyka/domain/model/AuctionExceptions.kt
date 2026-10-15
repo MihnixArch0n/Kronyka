@@ -15,3 +15,7 @@ class InvalidDepositException : RuntimeException()
 class RevealMismatchException : RuntimeException()
 
 class UnauthorizedAuctionActionException : RuntimeException()
+
+class InvalidReservePriceException : RuntimeException()
+
+class InvalidAuctionTimeException : RuntimeException()
