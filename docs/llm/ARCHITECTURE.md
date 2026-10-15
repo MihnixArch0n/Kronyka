@@ -48,7 +48,7 @@ sequenceDiagram
     Bidder->>Controller: POST /api/auctions/{id}/commit {blind_hash, lockup_deposit}
     Controller->>Engine: submitCommitment(auctionId, bidderId, blindHash, deposit)
     Engine->>Repo: upsertCommitment(bidRecord)
-    Repo->>DB: INSERT INTO vickrey_bids ... ON CONFLICT DO UPDATE
+    Repo->>DB: INSERT INTO vickrey_bid ... ON CONFLICT DO UPDATE
     DB-->>Repo: Saved
     Repo-->>Engine: Saved Record
     Engine-->>Controller: BidResult
@@ -63,7 +63,7 @@ sequenceDiagram
         Controller-->>Bidder: 400 Bad Request (REVEAL_MISMATCH - Retry Allowed)
     else Hash Valid
         Engine->>Repo: markRevealed(auctionId, bidderId, actualBid)
-        Repo->>DB: UPDATE vickrey_bids SET is_revealed=true, actual_bid=...
+        Repo->>DB: UPDATE vickrey_bid SET is_revealed=true, actual_bid=...
         DB-->>Repo: OK
         Repo-->>Engine: OK
         Engine-->>Controller: RevealResult
@@ -88,7 +88,7 @@ sequenceDiagram
     Controller->>Engine: buyNow(auctionId, buyerA)
     Engine->>Engine: P(t) = calcCurrentStepPrice(now)
     Engine->>Repo: atomicPurchase(auctionId, buyerA, price, expectedVersion)
-    Repo->>DB: UPDATE auctions SET status='SOLD', winner_id=A, version=v+1 WHERE version=v
+    Repo->>DB: UPDATE auction SET status='SOLD', winner_id=A, version=v+1 WHERE version=v
     DB-->>Repo: 1 row affected
     Repo-->>Engine: Success
     Engine-->>Controller: PurchaseResult
@@ -97,7 +97,7 @@ sequenceDiagram
     Controller->>Engine: buyNow(auctionId, buyerB)
     Engine->>Engine: P(t) = calcCurrentStepPrice(now)
     Engine->>Repo: atomicPurchase(auctionId, buyerB, price, expectedVersion)
-    Repo->>DB: UPDATE auctions SET status='SOLD', winner_id=B, version=v+1 WHERE version=v
+    Repo->>DB: UPDATE auction SET status='SOLD', winner_id=B, version=v+1 WHERE version=v
     DB-->>Repo: 0 rows affected (version changed!)
     Repo-->>Engine: 0 rows affected
     Engine-->>Controller: Throw ConcurrencyConflictException
@@ -108,10 +108,10 @@ sequenceDiagram
 
 ## 3. Concurrency & Data Consistency Strategy
 
-1. **Optimistic Versioning on Auctions Table**:
+1. **Optimistic Versioning on Auction Table**:
    - The `version` column is incremented atomically during state transitions (e.g., `ACTIVE -> SOLD`).
    - Prevents double-spending and multiple buyers simultaneously winning a Dutch auction.
-2. **PostgreSQL Unique Constraint & Upsert on Vickrey Bids**:
+2. **PostgreSQL Unique Constraint & Upsert on Vickrey Bid Table**:
    - `UNIQUE(auction_id, bidder_id)` ensures a single row per bidder per auction.
    - Upsert pattern allows users to safely modify their blind commitment before the commit window closes without race conditions or duplications.
 3. **Stateless Tick-Based Math**:
