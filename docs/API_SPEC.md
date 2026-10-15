@@ -96,8 +96,9 @@ Interactive API documentation is also generated automatically via OpenAPI / Swag
     "title": "Crypto Domain: rare.eth",
     "type": "VICKREY",
     "reserve_price": 500000,
-    "commit_duration_seconds": 3600,
-    "reveal_duration_seconds": 1800
+    "start_time": "2026-10-01T08:00:00Z",
+    "commit_end_time": "2026-10-01T09:00:00Z",
+    "reveal_end_time": "2026-10-01T09:30:00Z"
   }
   ```
 - **Payload for Dutch**:
