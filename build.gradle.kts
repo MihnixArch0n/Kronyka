@@ -34,6 +34,7 @@ dependencies {
     implementation(libs.exposed.springBoot4Starter)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.javaTime)
+    implementation(libs.exposed.kotlinDatetime)
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.moduleKotlin)
     runtimeOnly(libs.h2)
