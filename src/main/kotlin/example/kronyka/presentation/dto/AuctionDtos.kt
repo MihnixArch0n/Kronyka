@@ -1,14 +1,62 @@
 package example.kronyka.presentation.dto
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import example.kronyka.domain.model.Auction
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
+import example.kronyka.domain.model.VickreyAuction
+import example.kronyka.domain.model.VickreyBid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.PositiveOrZero
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
+
+fun VickreyAuction.toCreateResponse() = CreateAuctionResponse(
+    auctionId = id,
+    title = title,
+    type = type,
+    sellerId = sellerId,
+    startTime = startTime,
+    commitEndTime = commitEndTime,
+    revealEndTime = revealEndTime,
+    status = status.name
+)
+
+fun Auction.toDetailResponse() = AuctionDetailResponse(
+    auctionId = id,
+    sellerId = sellerId,
+    title = title,
+    type = type,
+    status = status,
+    startTime = startTime,
+    endTime = endTime,
+    winnerId = winnerId,
+    finalPrice = finalPrice,
+    version = version,
+    createdAt = createdAt,
+    reservePrice = (this as? VickreyAuction)?.reservePrice,
+    commitEndTime = (this as? VickreyAuction)?.commitEndTime,
+    revealEndTime = (this as? VickreyAuction)?.revealEndTime
+)
+
+fun VickreyBid.toCommitResponse() = CommitBidResponse(
+    bidId = id,
+    auctionId = auctionId,
+    lockedDeposit = lockupDeposit,
+    isRevealed = isRevealed,
+    status = "COMMITTED",
+    message = "Blind commitment recorded."
+)
+
+fun VickreyBid.toRevealResponse() = RevealBidResponse(
+    bidId = id,
+    actualBid = actualBid,
+    isRevealed = isRevealed,
+    status = "REVEALED_VALID",
+    message = "Bid revealed successfully."
+)
 
 data class CreateVickreyAuctionRequest(
     @field:NotBlank val title: String? = null,
@@ -48,7 +96,7 @@ data class CommitBidResponse(
     @JsonProperty("auction_id") val auctionId: Uuid?,
     @JsonProperty("locked_deposit") val lockedDeposit: Long?,
     @JsonProperty("is_revealed") val isRevealed: Boolean? = null,
-    val status: String?,
+    val status: String? = null,
     val message: String? = null
 )
 
@@ -64,7 +112,7 @@ data class RevealBidResponse(
     @JsonProperty("bid_id") val bidId: Uuid?,
     @JsonProperty("actual_bid") val actualBid: Long?,
     @JsonProperty("is_revealed") val isRevealed: Boolean? = null,
-    val status: String?,
+    val status: String? = null,
     val message: String? = null
 )
 
@@ -80,8 +128,8 @@ data class AuctionDetailResponse(
     @JsonProperty("final_price") val finalPrice: Long?,
     val version: Long,
     @JsonProperty("created_at") val createdAt: Instant,
-    @JsonProperty("reserve_price") val reservePrice: Long,
-    @JsonProperty("commit_end_time") val commitEndTime: Instant,
-    @JsonProperty("reveal_end_time") val revealEndTime: Instant,
+    @JsonProperty("reserve_price") val reservePrice: Long? = null,
+    @JsonProperty("commit_end_time") val commitEndTime: Instant? = null,
+    @JsonProperty("reveal_end_time") val revealEndTime: Instant? = null,
     @JsonProperty("second_bidder_id") val secondBidderId: Uuid? = null
 )
