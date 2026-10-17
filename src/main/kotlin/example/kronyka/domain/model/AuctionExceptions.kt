@@ -1,21 +1,23 @@
 package example.kronyka.domain.model
 
-class AuctionCancellationException : RuntimeException()
+sealed class AuctionException(message: String? = null) : RuntimeException(message)
 
-class AuctionNotFoundException : RuntimeException()
+class AuctionCancellationException : AuctionException()
 
-class BidNotFoundException : RuntimeException()
+class AuctionNotFoundException : AuctionException()
 
-class InvalidAuctionStateException(message: String) : RuntimeException(message)
+class BidNotFoundException : AuctionException()
 
-class InvalidAuctionTypeException : RuntimeException()
+class InvalidAuctionStateException(message: String) : AuctionException(message)
 
-class InvalidDepositException : RuntimeException()
+class InvalidAuctionTypeException : AuctionException()
 
-class RevealMismatchException : RuntimeException()
+class InvalidDepositException : AuctionException()
 
-class UnauthorizedAuctionActionException : RuntimeException()
+class RevealMismatchException : AuctionException()
 
-class InvalidReservePriceException : RuntimeException()
+class UnauthorizedAuctionActionException : AuctionException()
 
-class InvalidAuctionTimeException : RuntimeException()
+class InvalidReservePriceException : AuctionException()
+
+class InvalidAuctionTimeException : AuctionException()
