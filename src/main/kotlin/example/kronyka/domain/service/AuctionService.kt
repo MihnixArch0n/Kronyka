@@ -61,6 +61,9 @@ class AuctionService(
     fun getAuction(auctionId: Uuid): Auction =
         auctionRepository.findById(auctionId) ?: throw AuctionNotFoundException()
 
+    fun getAuctionCommitmentCount(auctionId: Uuid): Long =
+        bidRepository.countCommitmentsByAuctionId(auctionId)
+
     fun cancelAuction(auctionId: Uuid, userId: Uuid): Auction {
         val auction = auctionRepository.findById(auctionId)
             ?: throw AuctionNotFoundException()

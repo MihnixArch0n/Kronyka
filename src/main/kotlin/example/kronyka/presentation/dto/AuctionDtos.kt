@@ -21,10 +21,11 @@ fun VickreyAuction.toCreateResponse() = CreateAuctionResponse(
     startTime = startTime,
     commitEndTime = commitEndTime,
     revealEndTime = revealEndTime,
+    endTime = endTime,
     status = status.name
 )
 
-fun Auction.toDetailResponse() = AuctionDetailResponse(
+fun Auction.toDetailResponse(totalCommitments: Long? = null) = AuctionDetailResponse(
     auctionId = id,
     sellerId = sellerId,
     title = title,
@@ -38,7 +39,8 @@ fun Auction.toDetailResponse() = AuctionDetailResponse(
     createdAt = createdAt,
     reservePrice = (this as? VickreyAuction)?.reservePrice,
     commitEndTime = (this as? VickreyAuction)?.commitEndTime,
-    revealEndTime = (this as? VickreyAuction)?.revealEndTime
+    revealEndTime = (this as? VickreyAuction)?.revealEndTime,
+    totalCommitments = totalCommitments
 )
 
 fun VickreyBid.toCommitResponse() = CommitBidResponse(
@@ -75,12 +77,18 @@ data class CreateAuctionResponse(
     @JsonProperty("auction_id") val auctionId: Uuid?,
     val title: String? = null,
     val type: AuctionType? = null,
-    val sellerId: Uuid? = null,
-    val startTime: Instant? = null,
-    val commitEndTime: Instant? = null,
-    val revealEndTime: Instant? = null,
+    @JsonProperty("seller_id") val sellerId: Uuid? = null,
+    @JsonProperty("start_time") val startTime: Instant? = null,
+    @JsonProperty("commit_end_time") val commitEndTime: Instant? = null,
+    @JsonProperty("reveal_end_time") val revealEndTime: Instant? = null,
+    @JsonProperty("end_time") val endTime: Instant? = null,
     val status: String? = null,
     val message: String? = null
+)
+
+data class CancelAuctionResponse(
+    @JsonProperty("auction_id") val auctionId: Uuid,
+    val message: String = "Auction cancelled successfully"
 )
 
 data class CommitBidRequest(
@@ -131,5 +139,6 @@ data class AuctionDetailResponse(
     @JsonProperty("reserve_price") val reservePrice: Long? = null,
     @JsonProperty("commit_end_time") val commitEndTime: Instant? = null,
     @JsonProperty("reveal_end_time") val revealEndTime: Instant? = null,
-    @JsonProperty("second_bidder_id") val secondBidderId: Uuid? = null
+    @JsonProperty("second_bidder_id") val secondBidderId: Uuid? = null,
+    @JsonProperty("total_commitments") val totalCommitments: Long? = null
 )
