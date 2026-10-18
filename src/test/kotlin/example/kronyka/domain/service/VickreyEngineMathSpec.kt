@@ -6,6 +6,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.security.MessageDigest
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -75,7 +76,7 @@ class VickreyEngineMathSpec : FunSpec({
             ) shouldBe false
         }
 
-        test("should return false when hash case does not match standard lowercase hex") {
+        test("should return true when hash is uppercase hex (case-insensitive comparison)") {
             val actualBid = 150_000L
             val salt = "salt"
             val uppercaseHash = computeSha256("${actualBid}_${salt}").uppercase()
@@ -84,7 +85,7 @@ class VickreyEngineMathSpec : FunSpec({
                 blindHash = uppercaseHash,
                 actualBid = actualBid,
                 salt = salt
-            ) shouldBe false
+            ) shouldBe true
         }
     }
 
@@ -107,7 +108,7 @@ class VickreyEngineMathSpec : FunSpec({
             }
         }
 
-        test("should award single revealed bidder at reserve price with null secondBidderId") {
+        test("should award single revealed bidder at reserve price when actualBid meets reserve price") {
             val bidderId = Uuid.generateV7()
             val singleBid = createBid(bidderId = bidderId, auctionId = auctionId, actualBid = 120_000L)
 
@@ -121,6 +122,24 @@ class VickreyEngineMathSpec : FunSpec({
                 auctionId shouldBe auctionId
                 winnerId shouldBe bidderId
                 finalPrice shouldBe reservePrice
+                secondBidderId shouldBe null
+            }
+        }
+
+        test("should return unsold when single revealed bidder actualBid is below reserve price") {
+            val bidderId = Uuid.generateV7()
+            val singleBid = createBid(bidderId = bidderId, auctionId = auctionId, actualBid = 30_000L)
+
+            val result = calculateSettlement(
+                reservePrice = reservePrice,
+                auctionId = auctionId,
+                revealedBids = listOf(singleBid)
+            )
+
+            assertSoftly(result) {
+                auctionId shouldBe auctionId
+                winnerId shouldBe null
+                finalPrice shouldBe null
                 secondBidderId shouldBe null
             }
         }
@@ -163,7 +182,7 @@ class VickreyEngineMathSpec : FunSpec({
                 auctionId shouldBe auctionId
                 winnerId shouldBe bidder1
                 finalPrice shouldBe highReservePrice
-                secondBidderId shouldBe bidder2
+                secondBidderId shouldBe null
             }
         }
 
@@ -192,23 +211,24 @@ class VickreyEngineMathSpec : FunSpec({
             }
         }
 
-        test("should determine settlement price when top two bids are tied") {
+        test("should break tie deterministically favoring earlier commitment time") {
             val bidder1 = Uuid.generateV7()
             val bidder2 = Uuid.generateV7()
-            val bid1 = createBid(bidderId = bidder1, auctionId = auctionId, actualBid = 200_000L)
-            val bid2 = createBid(bidderId = bidder2, auctionId = auctionId, actualBid = 200_000L)
+            val now = Clock.System.now()
+            val bid1 = createBid(bidderId = bidder1, auctionId = auctionId, actualBid = 200_000L).copy(createdAt = now)
+            val bid2 = createBid(bidderId = bidder2, auctionId = auctionId, actualBid = 200_000L).copy(createdAt = now + 10.seconds)
 
             val result = calculateSettlement(
                 reservePrice = reservePrice,
                 auctionId = auctionId,
-                revealedBids = listOf(bid1, bid2)
+                revealedBids = listOf(bid2, bid1)
             )
 
             assertSoftly(result) {
                 auctionId shouldBe auctionId
+                winnerId shouldBe bidder1
                 finalPrice shouldBe 200_000L
-                (winnerId == bidder1 || winnerId == bidder2) shouldBe true
-                (secondBidderId == bidder1 || secondBidderId == bidder2) shouldBe true
+                secondBidderId shouldBe bidder2
             }
         }
     }

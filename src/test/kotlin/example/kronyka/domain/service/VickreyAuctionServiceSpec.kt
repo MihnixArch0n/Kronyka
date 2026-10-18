@@ -104,6 +104,30 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
             }
         }
 
+        When("auction is cancelled") {
+            Then("it should throw InvalidAuctionStateException") {
+                val now = Clock.System.now()
+                val cancelledAuction = createVickreyAuction(
+                    status = AuctionStatus.CANCELLED,
+                    startTime = now - 1.hours,
+                    commitEndTime = now + 1.hours,
+                    revealEndTime = now + 2.hours,
+                    endTime = now + 3.hours
+                )
+                auctionRepo.save(cancelledAuction)
+
+                val exception = shouldThrow<InvalidAuctionStateException> {
+                    service.commitBid(
+                        auctionId = cancelledAuction.id,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "some_hash",
+                        lockupDeposit = 200_000L
+                    )
+                }
+                exception.message shouldBe "Auction is cancelled"
+            }
+        }
+
         When("current time is before auction startTime") {
             Then("it should throw InvalidAuctionStateException") {
                 val now = Clock.System.now()
@@ -289,6 +313,30 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
                         secretSalt = "salt"
                     )
                 }
+            }
+        }
+
+        When("auction is cancelled") {
+            Then("it should throw InvalidAuctionStateException") {
+                val now = Clock.System.now()
+                val cancelledAuction = createVickreyAuction(
+                    status = AuctionStatus.CANCELLED,
+                    startTime = now - 2.hours,
+                    commitEndTime = now - 1.hours,
+                    revealEndTime = now + 1.hours,
+                    endTime = now + 2.hours
+                )
+                auctionRepo.save(cancelledAuction)
+
+                val exception = shouldThrow<InvalidAuctionStateException> {
+                    service.revealBid(
+                        auctionId = cancelledAuction.id,
+                        bidderId = Uuid.generateV7(),
+                        actualBid = 150_000L,
+                        secretSalt = "salt"
+                    )
+                }
+                exception.message shouldBe "Auction is cancelled"
             }
         }
 
@@ -526,6 +574,25 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
                     service.settleAuction(settledAuction.id)
                 }
                 exception.message shouldBe "Auction is already settled"
+            }
+        }
+
+        When("auction is cancelled") {
+            Then("it should throw InvalidAuctionStateException") {
+                val now = Clock.System.now()
+                val cancelledAuction = createVickreyAuction(
+                    status = AuctionStatus.CANCELLED,
+                    startTime = now - 3.hours,
+                    commitEndTime = now - 2.hours,
+                    revealEndTime = now - 1.hours,
+                    endTime = now - 30.minutes
+                )
+                auctionRepo.save(cancelledAuction)
+
+                val exception = shouldThrow<InvalidAuctionStateException> {
+                    service.settleAuction(cancelledAuction.id)
+                }
+                exception.message shouldBe "Auction is cancelled"
             }
         }
 

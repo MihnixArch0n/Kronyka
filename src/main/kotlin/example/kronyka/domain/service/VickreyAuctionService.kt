@@ -15,7 +15,7 @@ fun matchesBlindHash(blindHash: String, actualBid: Long, salt: String): Boolean 
         .digest(userString.toByteArray())
         .joinToString("") { "%02x".format(it) }
 
-    return userHash == blindHash
+    return blindHash.equals(userHash, ignoreCase = true)
 }
 
 fun calculateSettlement(
@@ -23,23 +23,32 @@ fun calculateSettlement(
     auctionId: Uuid,
     revealedBids: List<VickreyBid>
 ): SettlementResult {
-    if (revealedBids.isEmpty())
-        return SettlementResult(null, auctionId, null)
+    val qualifyingBids = revealedBids
+        .filter { it.actualBid != null && it.actualBid >= reservePrice }
+        .sortedWith(
+            compareByDescending<VickreyBid> { it.actualBid }
+                .thenBy { it.createdAt }
+        )
 
-    if (revealedBids.size == 1) {
+    if (qualifyingBids.isEmpty())
+        return SettlementResult(winnerId = null, auctionId = auctionId, finalPrice = null, secondBidderId = null)
+
+    if (qualifyingBids.size == 1) {
         return SettlementResult(
-            winnerId = revealedBids.first().bidderId,
+            winnerId = qualifyingBids.first().bidderId,
             auctionId = auctionId,
-            finalPrice = reservePrice
+            finalPrice = reservePrice,
+            secondBidderId = null
         )
     }
 
-    val bids = revealedBids.sortedByDescending { it.actualBid }.take(2)
+    val topBids = qualifyingBids.take(2)
+    val secondBidPrice = topBids[1].actualBid ?: reservePrice
     return SettlementResult(
-        winnerId = bids.first().bidderId,
+        winnerId = topBids[0].bidderId,
         auctionId = auctionId,
-        finalPrice = max(bids.last().actualBid ?: -1, reservePrice),
-        secondBidderId = bids.last().bidderId
+        finalPrice = max(secondBidPrice, reservePrice),
+        secondBidderId = topBids[1].bidderId
     )
 }
 
@@ -59,6 +68,9 @@ class VickreyAuctionService(
 
         if (auction !is VickreyAuction)
             throw InvalidAuctionTypeException()
+
+        if (auction.status == AuctionStatus.CANCELLED || auction.status == AuctionStatus.SETTLED)
+            throw InvalidAuctionStateException("Auction is ${auction.status.name.lowercase()}")
 
         val currentTime = Clock.System.now()
         if (currentTime !in auction.startTime..<auction.commitEndTime)
@@ -90,6 +102,9 @@ class VickreyAuctionService(
 
         if (auction !is VickreyAuction) throw InvalidAuctionTypeException()
 
+        if (auction.status == AuctionStatus.CANCELLED || auction.status == AuctionStatus.SETTLED)
+            throw InvalidAuctionStateException("Auction is ${auction.status.name.lowercase()}")
+
         val currentTime = Clock.System.now()
         if (currentTime !in auction.commitEndTime..<auction.revealEndTime)
             throw InvalidAuctionStateException("Not on reveal phase")
@@ -116,6 +131,9 @@ class VickreyAuctionService(
 
         if (auction !is VickreyAuction) throw InvalidAuctionTypeException()
 
+        if (auction.status == AuctionStatus.CANCELLED)
+            throw InvalidAuctionStateException("Auction is cancelled")
+
         if (auction.status == AuctionStatus.SETTLED)
             throw InvalidAuctionStateException("Auction is already settled")
 
@@ -135,7 +153,5 @@ class VickreyAuctionService(
             secondBidderId = results.secondBidderId,
         ))
         return results
-
-        // TODO: return deposit
     }
 }
