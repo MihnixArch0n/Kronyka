@@ -21,43 +21,6 @@ class AuctionService(
     private val auctionRepository: AuctionRepository,
     private val bidRepository: VickreyBidRepository
 ) {
-    @OptIn(ExperimentalUuidApi::class)
-    fun createVickreyAuction(
-        sellerId: Uuid,
-        title: String,
-        startTime: Instant,
-        reservePrice: Long,
-        commitEndTime: Instant,
-        revealEndTime: Instant,
-    ): VickreyAuction {
-        if (reservePrice < 0) throw InvalidReservePriceException()
-
-        val now = Clock.System.now()
-
-        if (now > startTime
-            || startTime > commitEndTime
-            || startTime > revealEndTime
-            || commitEndTime > revealEndTime)
-            throw InvalidAuctionTimeException()
-
-        val auction = VickreyAuction(
-            id = Uuid.generateV7(),
-            sellerId = sellerId,
-            title = title,
-            type = AuctionType.VICKREY,
-            status = AuctionStatus.COMMIT,
-            startTime = startTime,
-            endTime = revealEndTime,
-            version = 0L,
-            createdAt = now,
-            reservePrice = reservePrice,
-            commitEndTime = commitEndTime,
-            revealEndTime = revealEndTime,
-        )
-        auctionRepository.save(auction)
-        return auction
-    }
-
     fun getAuction(auctionId: Uuid): Auction =
         auctionRepository.findById(auctionId) ?: throw AuctionNotFoundException()
 

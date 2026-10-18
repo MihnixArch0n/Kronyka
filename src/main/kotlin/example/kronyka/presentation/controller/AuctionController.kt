@@ -23,7 +23,7 @@ class AuctionController(
         @RequestHeader("X-User-Id") sellerId: Uuid,
         @Valid @RequestBody request: CreateVickreyAuctionRequest
     ): ApiResponse<CreateAuctionResponse> {
-        val vickreyAuction = auctionService.createVickreyAuction(
+        val vickreyAuction = vickreyAuctionService.createVickreyAuction(
             sellerId = sellerId,
             title = request.title!!,
             startTime = request.startTime!!,
