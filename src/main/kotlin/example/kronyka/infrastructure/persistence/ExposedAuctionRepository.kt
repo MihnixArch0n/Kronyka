@@ -34,13 +34,13 @@ class ExposedAuctionRepository : AuctionRepository {
                         version = it[AuctionTable.version],
                         createdAt = it[AuctionTable.createdAt],
                         reservePrice = checkNotNull(it[AuctionTable.reservePrice]) {
-                            "Reserve price of bid ${it[AuctionTable.id]} is null"
+                            "Reserve price of auction ${it[AuctionTable.id]} is null"
                         },
                         commitEndTime = checkNotNull(it[AuctionTable.commitEndTime]) {
-                            "Commit end time of bid ${it[AuctionTable.id]} is null"
+                            "Commit end time of auction ${it[AuctionTable.id]} is null"
                         },
                         revealEndTime = checkNotNull(it[AuctionTable.revealEndTime]) {
-                            "Reveal end time of bid ${it[AuctionTable.id]} is null"
+                            "Reveal end time of auction ${it[AuctionTable.id]} is null"
                         },
                         secondBidderId = it[AuctionTable.secondBidderId]
                     )

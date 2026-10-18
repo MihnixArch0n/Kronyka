@@ -153,6 +153,53 @@ class ExposedVickreyBidRepositoryTest {
     }
 
     @Test
+    @DisplayName("upsert preserves original id and createdAt on recommitment with different id")
+    fun `upsert preserves original id and createdAt on recommitment with different id`() {
+        val auction = createAndSaveAuction()
+        val bidderId = insertTestUser()
+        val initialTime = Clock.System.now() - 1.hours
+        val originalId = Uuid.generateV7()
+
+        val firstCommit = VickreyBid(
+            id = originalId,
+            auctionId = auction.id,
+            bidderId = bidderId,
+            blindHash = "hash_commit_1",
+            lockupDeposit = 150_000L,
+            actualBid = null,
+            isRevealed = false,
+            createdAt = initialTime,
+            revealedAt = null
+        )
+        vickreyBidRepository.upsert(firstCommit)
+
+        val newGeneratedId = Uuid.generateV7()
+        val laterTime = Clock.System.now()
+        val secondCommit = VickreyBid(
+            id = newGeneratedId,
+            auctionId = auction.id,
+            bidderId = bidderId,
+            blindHash = "hash_commit_2_updated",
+            lockupDeposit = 300_000L,
+            actualBid = null,
+            isRevealed = false,
+            createdAt = laterTime,
+            revealedAt = null
+        )
+        vickreyBidRepository.upsert(secondCommit)
+
+        val retrieved = vickreyBidRepository.findByAuctionIdAndBidderId(auction.id, bidderId)
+        retrieved.shouldNotBeNull()
+
+        assertSoftly(retrieved) {
+            id shouldBe originalId
+            createdAt shouldBe initialTime
+            blindHash shouldBe "hash_commit_2_updated"
+            lockupDeposit shouldBe 300_000L
+        }
+    }
+
+    @Test
     @DisplayName("upsert updates revealed bid")
     fun `upsert updates revealed bid with actualBid, isRevealed true, and revealedAt`() {
         val auction = createAndSaveAuction()

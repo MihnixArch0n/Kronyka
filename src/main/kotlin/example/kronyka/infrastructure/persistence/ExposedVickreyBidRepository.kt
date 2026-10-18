@@ -4,6 +4,7 @@ import example.kronyka.domain.model.VickreyBid
 import example.kronyka.domain.repository.VickreyBidRepository
 import example.kronyka.infrastructure.persistence.tables.VickreyBidTable
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -44,10 +45,16 @@ class ExposedVickreyBidRepository : VickreyBidRepository {
 
     @Transactional
     override fun upsert(bid: VickreyBid) {
-        VickreyBidTable.upsert(keys = arrayOf(
-            VickreyBidTable.auctionId,
-            VickreyBidTable.bidderId
-        )) {
+        VickreyBidTable.upsert(
+            keys = arrayOf(
+                VickreyBidTable.auctionId,
+                VickreyBidTable.bidderId
+            ),
+            onUpdateExclude = listOf(
+                VickreyBidTable.id,
+                VickreyBidTable.createdAt
+            )
+        ) {
             it[id] = bid.id
             it[auctionId] = bid.auctionId
             it[bidderId] = bid.bidderId
@@ -65,7 +72,10 @@ class ExposedVickreyBidRepository : VickreyBidRepository {
         val bids = VickreyBidTable.selectAll().where {
             (VickreyBidTable.auctionId eq auctionId) and
                     (VickreyBidTable.isRevealed eq true)
-        }.map { it.toDomain() }
+        }.orderBy(
+            VickreyBidTable.actualBid to SortOrder.DESC,
+            VickreyBidTable.createdAt to SortOrder.ASC
+        ).map { it.toDomain() }
         return bids
     }
 
