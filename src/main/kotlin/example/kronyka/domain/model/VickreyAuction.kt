@@ -19,4 +19,31 @@ data class VickreyAuction(
     val commitEndTime: Instant,
     val revealEndTime: Instant,
     val secondBidderId: Uuid? = null
-) : Auction
+) : Auction {
+
+    private fun validateNotTerminated() {
+        if (status == AuctionStatus.CANCELLED || status == AuctionStatus.SETTLED) {
+            throw InvalidAuctionStateException("Auction is ${status.name.lowercase()}")
+        }
+    }
+
+    fun ensureCommitPhase(now: Instant) {
+        validateNotTerminated()
+        if (now !in startTime..<commitEndTime) {
+            throw InvalidAuctionStateException("Not in commit phase")
+        }
+    }
+
+    fun ensureRevealPhase(now: Instant) {
+        validateNotTerminated()
+        if (now !in commitEndTime..<revealEndTime) {
+            throw InvalidAuctionStateException("Not on reveal phase")
+        }
+    }
+
+    fun ensureSettlePhase(now: Instant) {
+        if (status == AuctionStatus.CANCELLED) throw InvalidAuctionStateException("Auction is cancelled")
+        if (status == AuctionStatus.SETTLED) throw InvalidAuctionStateException("Auction is already settled")
+        if (now < revealEndTime) throw InvalidAuctionStateException("Not on settle phase")
+    }
+}

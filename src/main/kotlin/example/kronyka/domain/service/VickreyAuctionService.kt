@@ -57,24 +57,25 @@ class VickreyAuctionService(
     private val auctionRepository: AuctionRepository,
     private val bidRepository: VickreyBidRepository
 ) {
-    @OptIn(ExperimentalUuidApi::class)
-    fun commitBid(auctionId: Uuid,
-                  bidderId: Uuid,
-                  blindHash: String,
-                  lockupDeposit: Long
-    ): VickreyBid {
+    private fun getVickreyAuction(auctionId: Uuid): VickreyAuction {
         val auction = auctionRepository.findById(auctionId)
             ?: throw AuctionNotFoundException()
 
         if (auction !is VickreyAuction)
             throw InvalidAuctionTypeException()
 
-        if (auction.status == AuctionStatus.CANCELLED || auction.status == AuctionStatus.SETTLED)
-            throw InvalidAuctionStateException("Auction is ${auction.status.name.lowercase()}")
+        return auction
+    }
 
+    @OptIn(ExperimentalUuidApi::class)
+    fun commitBid(auctionId: Uuid,
+                  bidderId: Uuid,
+                  blindHash: String,
+                  lockupDeposit: Long
+    ): VickreyBid {
+        val auction = getVickreyAuction(auctionId)
         val currentTime = Clock.System.now()
-        if (currentTime !in auction.startTime..<auction.commitEndTime)
-            throw InvalidAuctionStateException("Not in commit phase")
+        auction.ensureCommitPhase(currentTime)
 
         if (lockupDeposit < auction.reservePrice) throw InvalidDepositException()
 
@@ -97,17 +98,9 @@ class VickreyAuctionService(
                   actualBid: Long,
                   secretSalt: String
     ): VickreyBid {
-        val auction = auctionRepository.findById(auctionId)
-            ?: throw AuctionNotFoundException()
-
-        if (auction !is VickreyAuction) throw InvalidAuctionTypeException()
-
-        if (auction.status == AuctionStatus.CANCELLED || auction.status == AuctionStatus.SETTLED)
-            throw InvalidAuctionStateException("Auction is ${auction.status.name.lowercase()}")
-
+        val auction = getVickreyAuction(auctionId)
         val currentTime = Clock.System.now()
-        if (currentTime !in auction.commitEndTime..<auction.revealEndTime)
-            throw InvalidAuctionStateException("Not on reveal phase")
+        auction.ensureRevealPhase(currentTime)
 
         val bid = bidRepository.findByAuctionIdAndBidderId(auctionId, bidderId)
             ?: throw BidNotFoundException()
@@ -126,19 +119,9 @@ class VickreyAuctionService(
     }
 
     fun settleAuction(auctionId: Uuid): SettlementResult {
-        val auction = auctionRepository.findById(auctionId)
-            ?: throw AuctionNotFoundException()
-
-        if (auction !is VickreyAuction) throw InvalidAuctionTypeException()
-
-        if (auction.status == AuctionStatus.CANCELLED)
-            throw InvalidAuctionStateException("Auction is cancelled")
-
-        if (auction.status == AuctionStatus.SETTLED)
-            throw InvalidAuctionStateException("Auction is already settled")
-
-        if (Clock.System.now() < auction.revealEndTime)
-            throw InvalidAuctionStateException("Not on settle phase")
+        val auction = getVickreyAuction(auctionId)
+        val currentTime = Clock.System.now()
+        auction.ensureSettlePhase(currentTime)
 
         val bids = bidRepository.findAllRevealedBidsByAuctionId(auction.id)
         val results = calculateSettlement(
