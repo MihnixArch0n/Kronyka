@@ -19,6 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.ServletRequestBindingException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
@@ -62,6 +63,15 @@ class GlobalExceptionHandler {
         val errorCode = ErrorCode.MALFORMED_JSON
         val message = ex.mostSpecificCause.message ?: errorCode.message
         val response = ApiResponse.error<Unit>(errorCode, message)
+        return ResponseEntity.status(errorCode.httpStatus).body(response)
+    }
+
+    @ExceptionHandler(ServletRequestBindingException::class)
+    fun handleServletRequestBinding(
+        ex: ServletRequestBindingException
+    ): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.BAD_REQUEST
+        val response = ApiResponse.error<Unit>(errorCode, ex.message ?: errorCode.message)
         return ResponseEntity.status(errorCode.httpStatus).body(response)
     }
 

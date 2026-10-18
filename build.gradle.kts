@@ -49,6 +49,8 @@ dependencies {
     testImplementation(platform(libs.kotest.bom))
     testImplementation(libs.kotest.runnerJunit5)
     testImplementation(libs.kotest.assertionsCore)
+    testImplementation(libs.mockk)
+    testImplementation(libs.springmockk)
 }
 
 kotlin {
