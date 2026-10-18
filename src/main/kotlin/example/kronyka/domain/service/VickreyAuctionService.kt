@@ -174,4 +174,13 @@ class VickreyAuctionService(
         ))
         return results
     }
+
+    fun getCommitmentCount(auctionId: Uuid): Long =
+        bidRepository.countCommitmentsByAuctionId(auctionId)
+
+    fun validateCanCancel(auctionId: Uuid) {
+        if (bidRepository.countCommitmentsByAuctionId(auctionId) > 0) {
+            throw AuctionCancellationException()
+        }
+    }
 }

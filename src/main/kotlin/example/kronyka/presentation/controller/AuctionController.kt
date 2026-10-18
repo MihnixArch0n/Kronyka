@@ -40,7 +40,7 @@ class AuctionController(
     fun getAuction(@PathVariable id: Uuid): ApiResponse<AuctionDetailResponse> {
         val auction = auctionService.getAuction(id)
         val totalCommitments = if (auction is VickreyAuction) {
-            auctionService.getAuctionCommitmentCount(id)
+            vickreyAuctionService.getCommitmentCount(id)
         } else null
 
         return ApiResponse.success(auction.toDetailResponse(totalCommitments))

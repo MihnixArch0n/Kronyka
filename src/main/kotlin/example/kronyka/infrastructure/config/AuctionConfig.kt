@@ -12,8 +12,8 @@ class AuctionConfig {
     @Bean
     fun auctionService(
         auctionRepository: AuctionRepository,
-        bidRepository: VickreyBidRepository
-    ): AuctionService = AuctionService(auctionRepository, bidRepository)
+        vickreyAuctionService: VickreyAuctionService
+    ): AuctionService = AuctionService(auctionRepository, vickreyAuctionService)
 
     @Bean
     fun vickreyAuctionService(

@@ -916,4 +916,80 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
             }
         }
     }
+
+    Given("VickreyAuctionService validateCanCancel") {
+        val auctionRepo = FakeAuctionRepository()
+        val bidRepo = FakeVickreyBidRepository()
+        val service = VickreyAuctionService(auctionRepo, bidRepo)
+
+        When("Vickrey auction has at least one commitment") {
+            Then("it should throw AuctionCancellationException") {
+                val auctionId = Uuid.generateV7()
+                val now = Clock.System.now()
+                bidRepo.upsert(
+                    VickreyBid(
+                        id = Uuid.generateV7(),
+                        auctionId = auctionId,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "hash123",
+                        lockupDeposit = 100_000L,
+                        createdAt = now
+                    )
+                )
+
+                shouldThrow<AuctionCancellationException> {
+                    service.validateCanCancel(auctionId)
+                }
+            }
+        }
+
+        When("Vickrey auction has no commitments") {
+            Then("it should succeed without throwing an exception") {
+                val auctionId = Uuid.generateV7()
+                service.validateCanCancel(auctionId)
+            }
+        }
+    }
+
+    Given("VickreyAuctionService getCommitmentCount") {
+        val auctionRepo = FakeAuctionRepository()
+        val bidRepo = FakeVickreyBidRepository()
+        val service = VickreyAuctionService(auctionRepo, bidRepo)
+
+        When("auction has no commitments") {
+            Then("it should return 0") {
+                val auctionId = Uuid.generateV7()
+                service.getCommitmentCount(auctionId) shouldBe 0L
+            }
+        }
+
+        When("auction has commitments") {
+            Then("it should return the exact count") {
+                val auctionId = Uuid.generateV7()
+                val now = Clock.System.now()
+                bidRepo.upsert(
+                    VickreyBid(
+                        id = Uuid.generateV7(),
+                        auctionId = auctionId,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "h1",
+                        lockupDeposit = 100_000L,
+                        createdAt = now
+                    )
+                )
+                bidRepo.upsert(
+                    VickreyBid(
+                        id = Uuid.generateV7(),
+                        auctionId = auctionId,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "h2",
+                        lockupDeposit = 200_000L,
+                        createdAt = now
+                    )
+                )
+
+                service.getCommitmentCount(auctionId) shouldBe 2L
+            }
+        }
+    }
 })

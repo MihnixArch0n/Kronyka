@@ -3,24 +3,63 @@ package example.kronyka.domain.service
 import example.kronyka.domain.model.*
 import example.kronyka.domain.repository.FakeAuctionRepository
 import example.kronyka.domain.repository.FakeVickreyBidRepository
-import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 class AuctionServiceSpec : BehaviorSpec({
 
+    Given("AuctionService getAuction") {
+        val auctionRepo = FakeAuctionRepository()
+        val bidRepo = FakeVickreyBidRepository()
+        val vickreyService = VickreyAuctionService(auctionRepo, bidRepo)
+        val service = AuctionService(auctionRepo, vickreyService)
+
+        When("auction exists in repository") {
+            Then("it should return the auction") {
+                val now = Clock.System.now()
+                val auction = VickreyAuction(
+                    id = Uuid.generateV7(),
+                    sellerId = Uuid.generateV7(),
+                    title = "Vintage Watch",
+                    type = AuctionType.VICKREY,
+                    status = AuctionStatus.COMMIT,
+                    startTime = now - 1.hours,
+                    endTime = now + 3.hours,
+                    version = 0L,
+                    createdAt = now,
+                    reservePrice = 100_000L,
+                    commitEndTime = now + 1.hours,
+                    revealEndTime = now + 2.hours
+                )
+                auctionRepo.save(auction)
+
+                val retrieved = service.getAuction(auction.id)
+                retrieved shouldBe auction
+            }
+        }
+
+        When("auction does not exist") {
+            Then("it should throw AuctionNotFoundException") {
+                val nonExistentId = Uuid.generateV7()
+                shouldThrow<AuctionNotFoundException> {
+                    service.getAuction(nonExistentId)
+                }
+            }
+        }
+    }
+
     Given("AuctionService cancelAuction") {
         val auctionRepo = FakeAuctionRepository()
         val bidRepo = FakeVickreyBidRepository()
-        val service = AuctionService(auctionRepo, bidRepo)
+        val vickreyService = VickreyAuctionService(auctionRepo, bidRepo)
+        val service = AuctionService(auctionRepo, vickreyService)
 
         fun createSampleVickreyAuction(
             sellerId: Uuid = Uuid.generateV7(),
@@ -127,7 +166,6 @@ class AuctionServiceSpec : BehaviorSpec({
                     )
                 }
 
-                // Verify status remains unchanged in repository
                 auctionRepo.findById(auction.id)?.status shouldBe AuctionStatus.COMMIT
             }
         }
