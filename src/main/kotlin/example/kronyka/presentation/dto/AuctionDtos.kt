@@ -8,6 +8,7 @@ import example.kronyka.domain.model.VickreyAuction
 import example.kronyka.domain.model.VickreyBid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.PositiveOrZero
 import kotlin.time.Instant
@@ -30,7 +31,7 @@ fun Auction.toDetailResponse(totalCommitments: Long? = null) = AuctionDetailResp
     sellerId = sellerId,
     title = title,
     type = type,
-    status = status,
+    status = (this as? VickreyAuction)?.resolveStatus() ?: status,
     startTime = startTime,
     endTime = endTime,
     winnerId = winnerId,
@@ -93,6 +94,10 @@ data class CancelAuctionResponse(
 
 data class CommitBidRequest(
     @field:NotBlank
+    @field:Pattern(
+        regexp = "^[a-fA-F0-9]{64}$",
+        message = "Blind hash must be a 64-character hexadecimal SHA-256 string"
+    )
     @JsonProperty("blind_hash") val blindHash: String? = null,
     @field:NotNull
     @field:Positive

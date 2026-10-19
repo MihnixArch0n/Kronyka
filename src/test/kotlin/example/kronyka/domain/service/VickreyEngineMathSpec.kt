@@ -87,6 +87,18 @@ class VickreyEngineMathSpec : FunSpec({
                 salt = salt
             ) shouldBe true
         }
+
+        test("should correctly verify hash with multi-byte UTF-8 unicode salt") {
+            val actualBid = 250_000L
+            val unicodeSalt = "bí_mật_đấu_giá_🔒_2026"
+            val expectedHash = computeSha256("${actualBid}_${unicodeSalt}")
+
+            matchesBlindHash(
+                blindHash = expectedHash,
+                actualBid = actualBid,
+                salt = unicodeSalt
+            ) shouldBe true
+        }
     }
 
     context("calculateSettlement") {

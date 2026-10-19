@@ -5,6 +5,7 @@ import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.model.VickreyAuction
 import example.kronyka.domain.repository.AuctionRepository
 import example.kronyka.infrastructure.persistence.tables.AuctionTable
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.upsert
@@ -12,44 +13,42 @@ import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 import kotlin.uuid.Uuid
 
+private fun ResultRow.toDomain(): Auction =
+    when (this[AuctionTable.type]) {
+        AuctionType.VICKREY -> VickreyAuction(
+            id = this[AuctionTable.id],
+            sellerId = this[AuctionTable.sellerId],
+            title = this[AuctionTable.title],
+            status = this[AuctionTable.status],
+            startTime = this[AuctionTable.startTime],
+            endTime = this[AuctionTable.endTime],
+            winnerId = this[AuctionTable.winnerId],
+            finalPrice = this[AuctionTable.finalPrice],
+            version = this[AuctionTable.version],
+            createdAt = this[AuctionTable.createdAt],
+            reservePrice = checkNotNull(this[AuctionTable.reservePrice]) {
+                "Reserve price of auction ${this[AuctionTable.id]} is null"
+            },
+            commitEndTime = checkNotNull(this[AuctionTable.commitEndTime]) {
+                "Commit end time of auction ${this[AuctionTable.id]} is null"
+            },
+            revealEndTime = checkNotNull(this[AuctionTable.revealEndTime]) {
+                "Reveal end time of auction ${this[AuctionTable.id]} is null"
+            },
+            secondBidderId = this[AuctionTable.secondBidderId]
+        )
+        AuctionType.DUTCH -> TODO("Not implemented yet")
+    }
+
 @Repository
 class ExposedAuctionRepository : AuctionRepository {
     @Transactional
-    override fun findById(id: Uuid): Auction? {
-        val auction = AuctionTable.selectAll().where {
+    override fun findById(id: Uuid): Auction? =
+        AuctionTable.selectAll().where {
             AuctionTable.id eq id
         }
             .singleOrNull()
-            ?.let {
-                when (it[AuctionTable.type]) {
-                    AuctionType.VICKREY -> VickreyAuction(
-                        id = it[AuctionTable.id],
-                        sellerId = it[AuctionTable.sellerId],
-                        title = it[AuctionTable.title],
-                        status = it[AuctionTable.status],
-                        startTime = it[AuctionTable.startTime],
-                        endTime = it[AuctionTable.endTime],
-                        winnerId = it[AuctionTable.winnerId],
-                        finalPrice = it[AuctionTable.finalPrice],
-                        version = it[AuctionTable.version],
-                        createdAt = it[AuctionTable.createdAt],
-                        reservePrice = checkNotNull(it[AuctionTable.reservePrice]) {
-                            "Reserve price of auction ${it[AuctionTable.id]} is null"
-                        },
-                        commitEndTime = checkNotNull(it[AuctionTable.commitEndTime]) {
-                            "Commit end time of auction ${it[AuctionTable.id]} is null"
-                        },
-                        revealEndTime = checkNotNull(it[AuctionTable.revealEndTime]) {
-                            "Reveal end time of auction ${it[AuctionTable.id]} is null"
-                        },
-                        secondBidderId = it[AuctionTable.secondBidderId]
-                    )
-
-                    AuctionType.DUTCH -> TODO("Not implemented yet")
-                }
-            }
-        return auction
-    }
+            ?.toDomain()
 
     @Transactional
     override fun save(auction: Auction) {

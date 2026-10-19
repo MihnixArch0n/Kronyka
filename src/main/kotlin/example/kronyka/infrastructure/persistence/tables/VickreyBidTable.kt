@@ -29,6 +29,13 @@ object VickreyBidTable : Table() {
             auctionId,
             bidderId
         )
+        index(
+            "idx_vickrey_bid_settle",
+            false,
+            auctionId,
+            isRevealed,
+            actualBid
+        )
     }
 
     override val primaryKey = PrimaryKey(id)

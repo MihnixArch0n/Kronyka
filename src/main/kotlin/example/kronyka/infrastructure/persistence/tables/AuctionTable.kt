@@ -40,5 +40,14 @@ object AuctionTable : Table() {
     val version = long("version")
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 
+    init {
+        index(
+            "idx_auction_type_status",
+            false,
+            type,
+            status
+        )
+    }
+
     override val primaryKey = PrimaryKey(id)
 }

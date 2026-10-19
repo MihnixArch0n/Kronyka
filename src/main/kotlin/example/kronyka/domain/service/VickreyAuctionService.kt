@@ -13,7 +13,7 @@ import kotlin.uuid.Uuid
 fun matchesBlindHash(blindHash: String, actualBid: Long, salt: String): Boolean {
     val userString = "${actualBid}_${salt}"
     val userHash = MessageDigest.getInstance("SHA-256")
-        .digest(userString.toByteArray())
+        .digest(userString.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
 
     return blindHash.equals(userHash, ignoreCase = true)
@@ -72,9 +72,8 @@ class VickreyAuctionService(
         val now = Clock.System.now()
 
         if (now > startTime
-            || startTime > commitEndTime
-            || startTime > revealEndTime
-            || commitEndTime > revealEndTime)
+            || startTime >= commitEndTime
+            || commitEndTime >= revealEndTime)
             throw InvalidAuctionTimeException()
 
         val auction = VickreyAuction(

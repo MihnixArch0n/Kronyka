@@ -608,6 +608,32 @@ class AuctionControllerTest {
         }
 
         @Test
+        fun `fails with 400 Bad Request when blind_hash has invalid format or length`() {
+            val auctionId = Uuid.generateV7()
+            val bidderId = Uuid.generateV7()
+            val request = CommitBidRequest(
+                blindHash = "invalid_hash_too_short",
+                lockupDeposit = 100_000L
+            )
+
+            val response = restTestClient.post()
+                .uri("/api/auctions/{id}/commit", auctionId)
+                .header("X-User-Id", bidderId.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .exchange()
+                .expectStatus().isBadRequest
+                .expectBody<ApiResponse<Unit>>()
+                .returnResult()
+                .responseBody
+
+            assertSoftly(response) {
+                shouldNotBeNull()
+                code shouldBe ErrorCode.VALIDATION_FAILED.code
+            }
+        }
+
+        @Test
         fun `fails with 400 Bad Request when lockup_deposit is zero or negative`() {
             val auctionId = Uuid.generateV7()
             val bidderId = Uuid.generateV7()

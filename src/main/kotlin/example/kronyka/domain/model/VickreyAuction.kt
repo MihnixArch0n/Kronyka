@@ -1,5 +1,6 @@
 package example.kronyka.domain.model
 
+import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -45,5 +46,12 @@ data class VickreyAuction(
         if (status == AuctionStatus.CANCELLED) throw InvalidAuctionStateException("Auction is cancelled")
         if (status == AuctionStatus.SETTLED) throw InvalidAuctionStateException("Auction is already settled")
         if (now < revealEndTime) throw InvalidAuctionStateException("Not on settle phase")
+    }
+
+    fun resolveStatus(now: Instant = Clock.System.now()): AuctionStatus = when {
+        status == AuctionStatus.CANCELLED -> AuctionStatus.CANCELLED
+        status == AuctionStatus.SETTLED -> AuctionStatus.SETTLED
+        now < commitEndTime -> AuctionStatus.COMMIT
+        else -> AuctionStatus.REVEAL
     }
 }
