@@ -6,16 +6,17 @@ import example.kronyka.domain.repository.VickreyBidRepository
 import java.security.MessageDigest
 import kotlin.math.max
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 fun matchesBlindHash(blindHash: String, actualBid: Long, salt: String): Boolean {
     val userString = "${actualBid}_${salt}"
     val userHash = MessageDigest.getInstance("SHA-256")
-        .digest(userString.toByteArray())
+        .digest(userString.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
 
-    return userHash == blindHash
+    return blindHash.equals(userHash, ignoreCase = true)
 }
 
 fun calculateSettlement(
@@ -23,23 +24,32 @@ fun calculateSettlement(
     auctionId: Uuid,
     revealedBids: List<VickreyBid>
 ): SettlementResult {
-    if (revealedBids.isEmpty())
-        return SettlementResult(null, auctionId, null)
+    val qualifyingBids = revealedBids
+        .filter { it.actualBid != null && it.actualBid >= reservePrice }
+        .sortedWith(
+            compareByDescending<VickreyBid> { it.actualBid }
+                .thenBy { it.createdAt }
+        )
 
-    if (revealedBids.size == 1) {
+    if (qualifyingBids.isEmpty())
+        return SettlementResult(winnerId = null, auctionId = auctionId, finalPrice = null, secondBidderId = null)
+
+    if (qualifyingBids.size == 1) {
         return SettlementResult(
-            winnerId = revealedBids.first().bidderId,
+            winnerId = qualifyingBids.first().bidderId,
             auctionId = auctionId,
-            finalPrice = reservePrice
+            finalPrice = reservePrice,
+            secondBidderId = null
         )
     }
 
-    val bids = revealedBids.sortedByDescending { it.actualBid }.take(2)
+    val topBids = qualifyingBids.take(2)
+    val secondBidPrice = topBids[1].actualBid ?: reservePrice
     return SettlementResult(
-        winnerId = bids.first().bidderId,
+        winnerId = topBids[0].bidderId,
         auctionId = auctionId,
-        finalPrice = max(bids.last().actualBid ?: -1, reservePrice),
-        secondBidderId = bids.last().bidderId
+        finalPrice = max(secondBidPrice, reservePrice),
+        secondBidderId = topBids[1].bidderId
     )
 }
 
@@ -49,20 +59,59 @@ class VickreyAuctionService(
     private val bidRepository: VickreyBidRepository
 ) {
     @OptIn(ExperimentalUuidApi::class)
-    fun commitBid(auctionId: Uuid,
-                  bidderId: Uuid,
-                  blindHash: String,
-                  lockupDeposit: Long
-    ): VickreyBid {
+    fun createVickreyAuction(
+        sellerId: Uuid,
+        title: String,
+        startTime: Instant,
+        reservePrice: Long,
+        commitEndTime: Instant,
+        revealEndTime: Instant,
+    ): VickreyAuction {
+        if (reservePrice < 0) throw InvalidReservePriceException()
+
+        val now = Clock.System.now()
+
+        if (now > startTime
+            || startTime >= commitEndTime
+            || commitEndTime >= revealEndTime)
+            throw InvalidAuctionTimeException()
+
+        val auction = VickreyAuction(
+            id = Uuid.generateV7(),
+            sellerId = sellerId,
+            title = title,
+            type = AuctionType.VICKREY,
+            status = AuctionStatus.COMMIT,
+            startTime = startTime,
+            endTime = revealEndTime,
+            version = 0L,
+            createdAt = now,
+            reservePrice = reservePrice,
+            commitEndTime = commitEndTime,
+            revealEndTime = revealEndTime,
+        )
+        auctionRepository.save(auction)
+        return auction
+    }
+    private fun getVickreyAuction(auctionId: Uuid): VickreyAuction {
         val auction = auctionRepository.findById(auctionId)
             ?: throw AuctionNotFoundException()
 
         if (auction !is VickreyAuction)
             throw InvalidAuctionTypeException()
 
+        return auction
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    fun commitBid(auctionId: Uuid,
+                  bidderId: Uuid,
+                  blindHash: String,
+                  lockupDeposit: Long
+    ): VickreyBid {
+        val auction = getVickreyAuction(auctionId)
         val currentTime = Clock.System.now()
-        if (currentTime !in auction.startTime..<auction.commitEndTime)
-            throw InvalidAuctionStateException("Not in commit phase")
+        auction.ensureCommitPhase(currentTime)
 
         if (lockupDeposit < auction.reservePrice) throw InvalidDepositException()
 
@@ -85,14 +134,9 @@ class VickreyAuctionService(
                   actualBid: Long,
                   secretSalt: String
     ): VickreyBid {
-        val auction = auctionRepository.findById(auctionId)
-            ?: throw AuctionNotFoundException()
-
-        if (auction !is VickreyAuction) throw InvalidAuctionTypeException()
-
+        val auction = getVickreyAuction(auctionId)
         val currentTime = Clock.System.now()
-        if (currentTime !in auction.commitEndTime..<auction.revealEndTime)
-            throw InvalidAuctionStateException("Not on reveal phase")
+        auction.ensureRevealPhase(currentTime)
 
         val bid = bidRepository.findByAuctionIdAndBidderId(auctionId, bidderId)
             ?: throw BidNotFoundException()
@@ -111,16 +155,9 @@ class VickreyAuctionService(
     }
 
     fun settleAuction(auctionId: Uuid): SettlementResult {
-        val auction = auctionRepository.findById(auctionId)
-            ?: throw AuctionNotFoundException()
-
-        if (auction !is VickreyAuction) throw InvalidAuctionTypeException()
-
-        if (auction.status == AuctionStatus.SETTLED)
-            throw InvalidAuctionStateException("Auction is already settled")
-
-        if (Clock.System.now() < auction.revealEndTime)
-            throw InvalidAuctionStateException("Not on settle phase")
+        val auction = getVickreyAuction(auctionId)
+        val currentTime = Clock.System.now()
+        auction.ensureSettlePhase(currentTime)
 
         val bids = bidRepository.findAllRevealedBidsByAuctionId(auction.id)
         val results = calculateSettlement(
@@ -135,7 +172,14 @@ class VickreyAuctionService(
             secondBidderId = results.secondBidderId,
         ))
         return results
+    }
 
-        // TODO: return deposit
+    fun getCommitmentCount(auctionId: Uuid): Long =
+        bidRepository.countCommitmentsByAuctionId(auctionId)
+
+    fun validateCanCancel(auctionId: Uuid) {
+        if (bidRepository.countCommitmentsByAuctionId(auctionId) > 0) {
+            throw AuctionCancellationException()
+        }
     }
 }

@@ -34,6 +34,7 @@ dependencies {
     implementation(libs.exposed.springBoot4Starter)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.javaTime)
+    implementation(libs.exposed.kotlinDatetime)
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.moduleKotlin)
     runtimeOnly(libs.h2)
@@ -48,6 +49,8 @@ dependencies {
     testImplementation(platform(libs.kotest.bom))
     testImplementation(libs.kotest.runnerJunit5)
     testImplementation(libs.kotest.assertionsCore)
+    testImplementation(libs.mockk)
+    testImplementation(libs.springmockk)
 }
 
 kotlin {

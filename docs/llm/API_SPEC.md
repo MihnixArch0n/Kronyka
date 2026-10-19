@@ -258,20 +258,12 @@ Auth Header: `Authorization: Bearer <token>`
 }
 ```
 
-### 4.3. Settle Auction (Phase 3)
-- **Method**: `POST`
-- **Path**: `/api/auctions/{id}/settle`
-- **Auth**: Bearer Token (Seller or Worker)
-- **Response `200 OK`**:
-```json
-{
-  "auction_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "status": "SETTLED",
-  "winner_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "highest_bid": 3200000,
-  "final_settled_price": 2800000,
-  "second_bidder_id": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
-  "refund_for_winner": 2200000,
-  "message": "Winner pays second-highest price (2,800,000 VND) and receives 2,200,000 VND deposit refund."
-}
-```
+### 4.3. Settle Auction (Phase 3 - Automated Background Worker)
+> [!NOTE]
+> **Automated Execution (Tech Debt / Scheduled Job)**: Vickrey auction settlement is executed automatically by an internal scheduled worker after `reveal_end_time` expires. There is no public client-facing HTTP endpoint for manual settlement.
+> 
+> When the worker runs `vickreyAuctionService.settleAuction(auctionId)`:
+> - Evaluates all revealed bids where `actual_bid >= reserve_price`.
+> - Awards the win to the highest bidder at the second-highest bid price (or `reserve_price` if exactly 1 qualifying bid).
+> - Transitions the auction status to `SETTLED`. If no qualifying revealed bids exist, the auction is marked `SETTLED` with `winner_id = null, final_price = null` (unsold).
+

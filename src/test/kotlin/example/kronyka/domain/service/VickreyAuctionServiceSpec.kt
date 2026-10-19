@@ -63,6 +63,186 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
         override val createdAt: Instant = startTime
     ) : Auction
 
+    Given("VickreyAuctionService createVickreyAuction") {
+        val auctionRepo = FakeAuctionRepository()
+        val bidRepo = FakeVickreyBidRepository()
+        val service = VickreyAuctionService(auctionRepo, bidRepo)
+
+        When("reservePrice is negative") {
+            Then("it should throw InvalidReservePriceException") {
+                val now = Clock.System.now()
+                shouldThrow<InvalidReservePriceException> {
+                    service.createVickreyAuction(
+                        sellerId = Uuid.generateV7(),
+                        title = "Vintage Watch",
+                        startTime = now + 1.hours,
+                        reservePrice = -1L,
+                        commitEndTime = now + 2.hours,
+                        revealEndTime = now + 3.hours
+                    )
+                }
+            }
+        }
+
+        When("startTime is in the past") {
+            Then("it should throw InvalidAuctionTimeException") {
+                val now = Clock.System.now()
+                shouldThrow<InvalidAuctionTimeException> {
+                    service.createVickreyAuction(
+                        sellerId = Uuid.generateV7(),
+                        title = "Vintage Watch",
+                        startTime = now - 5.minutes,
+                        reservePrice = 100_000L,
+                        commitEndTime = now + 2.hours,
+                        revealEndTime = now + 3.hours
+                    )
+                }
+            }
+        }
+
+        When("commitEndTime is before startTime") {
+            Then("it should throw InvalidAuctionTimeException") {
+                val now = Clock.System.now()
+                shouldThrow<InvalidAuctionTimeException> {
+                    service.createVickreyAuction(
+                        sellerId = Uuid.generateV7(),
+                        title = "Vintage Watch",
+                        startTime = now + 2.hours,
+                        reservePrice = 100_000L,
+                        commitEndTime = now + 1.hours,
+                        revealEndTime = now + 3.hours
+                    )
+                }
+            }
+        }
+
+        When("revealEndTime is before startTime") {
+            Then("it should throw InvalidAuctionTimeException") {
+                val now = Clock.System.now()
+                shouldThrow<InvalidAuctionTimeException> {
+                    service.createVickreyAuction(
+                        sellerId = Uuid.generateV7(),
+                        title = "Vintage Watch",
+                        startTime = now + 2.hours,
+                        reservePrice = 100_000L,
+                        commitEndTime = now + 3.hours,
+                        revealEndTime = now + 1.hours
+                    )
+                }
+            }
+        }
+
+        When("revealEndTime is before commitEndTime") {
+            Then("it should throw InvalidAuctionTimeException") {
+                val now = Clock.System.now()
+                shouldThrow<InvalidAuctionTimeException> {
+                    service.createVickreyAuction(
+                        sellerId = Uuid.generateV7(),
+                        title = "Vintage Watch",
+                        startTime = now + 1.hours,
+                        reservePrice = 100_000L,
+                        commitEndTime = now + 3.hours,
+                        revealEndTime = now + 2.hours
+                    )
+                }
+            }
+        }
+
+        When("commitEndTime is equal to startTime") {
+            Then("it should throw InvalidAuctionTimeException") {
+                val now = Clock.System.now()
+                val targetTime = now + 1.hours
+                shouldThrow<InvalidAuctionTimeException> {
+                    service.createVickreyAuction(
+                        sellerId = Uuid.generateV7(),
+                        title = "Vintage Watch",
+                        startTime = targetTime,
+                        reservePrice = 100_000L,
+                        commitEndTime = targetTime,
+                        revealEndTime = targetTime + 1.hours
+                    )
+                }
+            }
+        }
+
+        When("revealEndTime is equal to commitEndTime") {
+            Then("it should throw InvalidAuctionTimeException") {
+                val now = Clock.System.now()
+                val targetTime = now + 2.hours
+                shouldThrow<InvalidAuctionTimeException> {
+                    service.createVickreyAuction(
+                        sellerId = Uuid.generateV7(),
+                        title = "Vintage Watch",
+                        startTime = now + 1.hours,
+                        reservePrice = 100_000L,
+                        commitEndTime = targetTime,
+                        revealEndTime = targetTime
+                    )
+                }
+            }
+        }
+
+        When("valid parameters are provided with positive reservePrice") {
+            Then("it should persist and return a new VickreyAuction with COMMIT status") {
+                val now = Clock.System.now()
+                val sellerId = Uuid.generateV7()
+                val title = "Rare Mechanical Keyboard"
+                val reservePrice = 250_000L
+                val startTime = now + 1.hours
+                val commitEndTime = now + 2.hours
+                val revealEndTime = now + 3.hours
+
+                val auction = service.createVickreyAuction(
+                    sellerId = sellerId,
+                    title = title,
+                    startTime = startTime,
+                    reservePrice = reservePrice,
+                    commitEndTime = commitEndTime,
+                    revealEndTime = revealEndTime
+                )
+
+                assertSoftly(auction) {
+                    id.shouldNotBeNull()
+                    this.sellerId shouldBe sellerId
+                    this.title shouldBe title
+                    type shouldBe AuctionType.VICKREY
+                    status shouldBe AuctionStatus.COMMIT
+                    this.startTime shouldBe startTime
+                    endTime shouldBe revealEndTime
+                    this.reservePrice shouldBe reservePrice
+                    this.commitEndTime shouldBe commitEndTime
+                    this.revealEndTime shouldBe revealEndTime
+                    version shouldBe 0L
+                    winnerId shouldBe null
+                    finalPrice shouldBe null
+                    secondBidderId shouldBe null
+                }
+
+                // Verify persisted in repository
+                val savedAuction = auctionRepo.findById(auction.id)
+                savedAuction shouldBe auction
+            }
+        }
+
+        When("reservePrice is zero") {
+            Then("it should successfully create the auction") {
+                val now = Clock.System.now()
+                val sellerId = Uuid.generateV7()
+                val auction = service.createVickreyAuction(
+                    sellerId = sellerId,
+                    title = "Free starting auction",
+                    startTime = now + 30.minutes,
+                    reservePrice = 0L,
+                    commitEndTime = now + 1.hours,
+                    revealEndTime = now + 2.hours
+                )
+
+                auction.reservePrice shouldBe 0L
+                auctionRepo.findById(auction.id) shouldBe auction
+            }
+        }
+    }
+
     Given("VickreyAuctionService commitBid phase") {
         val auctionRepo = FakeAuctionRepository()
         val bidRepo = FakeVickreyBidRepository()
@@ -101,6 +281,30 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
                         lockupDeposit = 200_000L
                     )
                 }
+            }
+        }
+
+        When("auction is cancelled") {
+            Then("it should throw InvalidAuctionStateException") {
+                val now = Clock.System.now()
+                val cancelledAuction = createVickreyAuction(
+                    status = AuctionStatus.CANCELLED,
+                    startTime = now - 1.hours,
+                    commitEndTime = now + 1.hours,
+                    revealEndTime = now + 2.hours,
+                    endTime = now + 3.hours
+                )
+                auctionRepo.save(cancelledAuction)
+
+                val exception = shouldThrow<InvalidAuctionStateException> {
+                    service.commitBid(
+                        auctionId = cancelledAuction.id,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "some_hash",
+                        lockupDeposit = 200_000L
+                    )
+                }
+                exception.message shouldBe "Auction is cancelled"
             }
         }
 
@@ -289,6 +493,30 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
                         secretSalt = "salt"
                     )
                 }
+            }
+        }
+
+        When("auction is cancelled") {
+            Then("it should throw InvalidAuctionStateException") {
+                val now = Clock.System.now()
+                val cancelledAuction = createVickreyAuction(
+                    status = AuctionStatus.CANCELLED,
+                    startTime = now - 2.hours,
+                    commitEndTime = now - 1.hours,
+                    revealEndTime = now + 1.hours,
+                    endTime = now + 2.hours
+                )
+                auctionRepo.save(cancelledAuction)
+
+                val exception = shouldThrow<InvalidAuctionStateException> {
+                    service.revealBid(
+                        auctionId = cancelledAuction.id,
+                        bidderId = Uuid.generateV7(),
+                        actualBid = 150_000L,
+                        secretSalt = "salt"
+                    )
+                }
+                exception.message shouldBe "Auction is cancelled"
             }
         }
 
@@ -529,6 +757,25 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
             }
         }
 
+        When("auction is cancelled") {
+            Then("it should throw InvalidAuctionStateException") {
+                val now = Clock.System.now()
+                val cancelledAuction = createVickreyAuction(
+                    status = AuctionStatus.CANCELLED,
+                    startTime = now - 3.hours,
+                    commitEndTime = now - 2.hours,
+                    revealEndTime = now - 1.hours,
+                    endTime = now - 30.minutes
+                )
+                auctionRepo.save(cancelledAuction)
+
+                val exception = shouldThrow<InvalidAuctionStateException> {
+                    service.settleAuction(cancelledAuction.id)
+                }
+                exception.message shouldBe "Auction is cancelled"
+            }
+        }
+
         When("current time is before revealEndTime") {
             Then("it should throw InvalidAuctionStateException") {
                 val now = Clock.System.now()
@@ -700,6 +947,127 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
                     finalPrice shouldBe 280_000L
                     secondBidderId shouldBe bidder2
                 }
+            }
+        }
+    }
+
+    Given("VickreyAuctionService validateCanCancel") {
+        val auctionRepo = FakeAuctionRepository()
+        val bidRepo = FakeVickreyBidRepository()
+        val service = VickreyAuctionService(auctionRepo, bidRepo)
+
+        When("Vickrey auction has at least one commitment") {
+            Then("it should throw AuctionCancellationException") {
+                val auctionId = Uuid.generateV7()
+                val now = Clock.System.now()
+                bidRepo.upsert(
+                    VickreyBid(
+                        id = Uuid.generateV7(),
+                        auctionId = auctionId,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "hash123",
+                        lockupDeposit = 100_000L,
+                        createdAt = now
+                    )
+                )
+
+                shouldThrow<AuctionCancellationException> {
+                    service.validateCanCancel(auctionId)
+                }
+            }
+        }
+
+        When("Vickrey auction has no commitments") {
+            Then("it should succeed without throwing an exception") {
+                val auctionId = Uuid.generateV7()
+                service.validateCanCancel(auctionId)
+            }
+        }
+    }
+
+    Given("VickreyAuctionService getCommitmentCount") {
+        val auctionRepo = FakeAuctionRepository()
+        val bidRepo = FakeVickreyBidRepository()
+        val service = VickreyAuctionService(auctionRepo, bidRepo)
+
+        When("auction has no commitments") {
+            Then("it should return 0") {
+                val auctionId = Uuid.generateV7()
+                service.getCommitmentCount(auctionId) shouldBe 0L
+            }
+        }
+
+        When("auction has commitments") {
+            Then("it should return the exact count") {
+                val auctionId = Uuid.generateV7()
+                val now = Clock.System.now()
+                bidRepo.upsert(
+                    VickreyBid(
+                        id = Uuid.generateV7(),
+                        auctionId = auctionId,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "h1",
+                        lockupDeposit = 100_000L,
+                        createdAt = now
+                    )
+                )
+                bidRepo.upsert(
+                    VickreyBid(
+                        id = Uuid.generateV7(),
+                        auctionId = auctionId,
+                        bidderId = Uuid.generateV7(),
+                        blindHash = "h2",
+                        lockupDeposit = 200_000L,
+                        createdAt = now
+                    )
+                )
+
+                service.getCommitmentCount(auctionId) shouldBe 2L
+            }
+        }
+    }
+
+    Given("VickreyAuction resolveStatus") {
+        val now = Clock.System.now()
+        val baseAuction = createVickreyAuction(
+            startTime = now - 2.hours,
+            commitEndTime = now - 1.hours,
+            revealEndTime = now + 1.hours,
+            endTime = now + 2.hours
+        )
+
+        When("auction is cancelled") {
+            Then("it should return CANCELLED regardless of current time") {
+                val cancelledAuction = baseAuction.copy(status = AuctionStatus.CANCELLED)
+                cancelledAuction.resolveStatus(now) shouldBe AuctionStatus.CANCELLED
+            }
+        }
+
+        When("auction is settled") {
+            Then("it should return SETTLED regardless of current time") {
+                val settledAuction = baseAuction.copy(status = AuctionStatus.SETTLED)
+                settledAuction.resolveStatus(now) shouldBe AuctionStatus.SETTLED
+            }
+        }
+
+        When("current time is before commitEndTime") {
+            Then("it should return COMMIT") {
+                val timeBeforeCommitEnd = baseAuction.commitEndTime - 10.minutes
+                baseAuction.resolveStatus(timeBeforeCommitEnd) shouldBe AuctionStatus.COMMIT
+            }
+        }
+
+        When("current time is between commitEndTime and revealEndTime") {
+            Then("it should return REVEAL") {
+                val timeInReveal = baseAuction.commitEndTime + 10.minutes
+                baseAuction.resolveStatus(timeInReveal) shouldBe AuctionStatus.REVEAL
+            }
+        }
+
+        When("current time is after revealEndTime but auction not yet settled") {
+            Then("it should return REVEAL") {
+                val timeAfterReveal = baseAuction.revealEndTime + 10.minutes
+                baseAuction.resolveStatus(timeAfterReveal) shouldBe AuctionStatus.REVEAL
             }
         }
     }
