@@ -6,12 +6,16 @@ import example.kronyka.domain.repository.UserRepository
 import example.kronyka.domain.service.AuthService
 import example.kronyka.infrastructure.security.JwtTokenProvider
 import example.kronyka.presentation.dto.*
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import kotlinx.coroutines.runBlocking
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
+@Tag(name = "Authentication", description = "Endpoints for user registration, authentication, and profile lookup")
 @RestController
 @RequestMapping("/api/auth")
 class AuthController(
@@ -20,6 +24,10 @@ class AuthController(
     private val userRepository: UserRepository
 ) {
 
+    @Operation(
+        summary = "Register a new user",
+        description = "Creates a new user account with a unique username and hashed password"
+    )
     @PostMapping("/register")
     fun register(
         @Valid @RequestBody request: RegisterRequest
@@ -39,6 +47,10 @@ class AuthController(
         )
     }
 
+    @Operation(
+        summary = "User login",
+        description = "Authenticates credentials and returns a Bearer JWT access token"
+    )
     @PostMapping("/login")
     fun login(
         @Valid @RequestBody request: LoginRequest
@@ -62,6 +74,11 @@ class AuthController(
         )
     }
 
+    @Operation(
+        summary = "Get current user profile",
+        description = "Retrieves profile details of the authenticated user",
+        security = [SecurityRequirement(name = "BearerAuth")]
+    )
     @GetMapping("/me")
     fun getCurrentUser(
         @RequestHeader(value = "Authorization", required = false) authHeader: String?
