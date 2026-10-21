@@ -1,16 +1,22 @@
 package example.kronyka.infrastructure.persistence
 
 import example.kronyka.domain.model.Auction
+import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.model.VickreyAuction
 import example.kronyka.domain.repository.AuctionRepository
 import example.kronyka.infrastructure.persistence.tables.AuctionTable
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.notInList
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private fun ResultRow.toDomain(): Auction =
@@ -75,4 +81,15 @@ class ExposedAuctionRepository : AuctionRepository {
             it[AuctionTable.createdAt] = auction.createdAt
         }
     }
+
+    @Transactional(readOnly = true)
+    override fun findExpiredUnsettledVickreyAuctions(beforeTime: Instant, limit: Int): List<VickreyAuction> =
+        AuctionTable.selectAll().where {
+            (AuctionTable.type eq AuctionType.VICKREY) and
+            (AuctionTable.status notInList listOf(AuctionStatus.SETTLED, AuctionStatus.CANCELLED)) and
+            (AuctionTable.revealEndTime lessEq beforeTime)
+        }
+            .orderBy(AuctionTable.revealEndTime, SortOrder.ASC)
+            .limit(limit)
+            .map { it.toDomain() as VickreyAuction }
 }
