@@ -7,3 +7,11 @@ spring:
   exposed:
     generate-ddl: true
     show-sql: true
+
+kronyka:
+  auction:
+    settlement:
+      enabled: false
+      fixed-delay-ms: 1000
+      batch-size: 10
+

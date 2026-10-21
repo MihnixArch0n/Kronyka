@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.annotation.Transactional
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -128,5 +129,72 @@ class ExposedAuctionRepositoryTest {
             finalPrice shouldBe 280_000L
             version shouldBe 2L
         }
+    }
+
+    @Test
+    @DisplayName("findExpiredUnsettledVickreyAuctions retrieves only unsettled auctions past revealEndTime")
+    fun `findExpiredUnsettledVickreyAuctions filters correctly by revealEndTime and status`() {
+        val sellerId = insertTestUser()
+        val now = Clock.System.now()
+
+        // Expired unsettled auction 1 (older)
+        val expiredAuction1 = createVickreyAuction(sellerId = sellerId).copy(
+            commitEndTime = now - 2.hours,
+            revealEndTime = now - 1.hours,
+            endTime = now - 1.hours,
+            status = AuctionStatus.COMMIT
+        )
+        // Expired unsettled auction 2 (newer)
+        val expiredAuction2 = createVickreyAuction(sellerId = sellerId).copy(
+            commitEndTime = now - 1.hours,
+            revealEndTime = now - 30.minutes,
+            endTime = now - 30.minutes,
+            status = AuctionStatus.REVEAL
+        )
+        // Not expired auction
+        val futureAuction = createVickreyAuction(sellerId = sellerId).copy(
+            commitEndTime = now + 1.hours,
+            revealEndTime = now + 2.hours,
+            endTime = now + 2.hours,
+            status = AuctionStatus.COMMIT
+        )
+        // Expired but already SETTLED
+        val settledAuction = createVickreyAuction(sellerId = sellerId).copy(
+            commitEndTime = now - 2.hours,
+            revealEndTime = now - 1.hours,
+            endTime = now - 1.hours,
+            status = AuctionStatus.SETTLED
+        )
+        // Expired but CANCELLED
+        val cancelledAuction = createVickreyAuction(sellerId = sellerId).copy(
+            commitEndTime = now - 2.hours,
+            revealEndTime = now - 1.hours,
+            endTime = now - 1.hours,
+            status = AuctionStatus.CANCELLED
+        )
+
+        auctionRepository.save(expiredAuction1)
+        auctionRepository.save(expiredAuction2)
+        auctionRepository.save(futureAuction)
+        auctionRepository.save(settledAuction)
+        auctionRepository.save(cancelledAuction)
+
+        val results = auctionRepository.findExpiredUnsettledVickreyAuctions(beforeTime = now, limit = 10)
+        val resultIds = results.map { it.id }
+
+        resultIds.contains(expiredAuction1.id) shouldBe true
+        resultIds.contains(expiredAuction2.id) shouldBe true
+        resultIds.contains(futureAuction.id) shouldBe false
+        resultIds.contains(settledAuction.id) shouldBe false
+        resultIds.contains(cancelledAuction.id) shouldBe false
+
+        // Check order: expiredAuction1 should come before expiredAuction2
+        val index1 = resultIds.indexOf(expiredAuction1.id)
+        val index2 = resultIds.indexOf(expiredAuction2.id)
+        (index1 < index2) shouldBe true
+
+        // Check limit
+        val limitedResults = auctionRepository.findExpiredUnsettledVickreyAuctions(beforeTime = now, limit = 1)
+        limitedResults.size shouldBe 1
     }
 }
