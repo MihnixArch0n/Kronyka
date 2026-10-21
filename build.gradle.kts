@@ -37,6 +37,8 @@ dependencies {
     implementation(libs.exposed.kotlinDatetime)
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.moduleKotlin)
+    implementation(libs.springdoc.openapi.webmvc.api)
+    implementation(libs.scalar.webmvc)
     runtimeOnly(libs.h2)
     runtimeOnly(libs.postgresql)
     testImplementation(libs.springBoot.starterActuatorTest)

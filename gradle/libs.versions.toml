@@ -5,6 +5,8 @@ springBoot = "4.1.1"
 kotest = "6.2.5"
 mockk = "1.14.11"
 springmockk = "5.0.1"
+springdoc = "3.1.1"
+scalar = "0.6.80"
 
 [libraries]
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
@@ -24,6 +26,7 @@ kotest-assertionsCore = { module = "io.kotest:kotest-assertions-core" }
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
 kotlin-testJunit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5" }
 postgresql = { module = "org.postgresql:postgresql" }
+scalar-webmvc = { module = "com.scalar.maven:scalar-webmvc", version.ref = "scalar" }
 springBoot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 springBoot-h2console = { module = "org.springframework.boot:spring-boot-h2console" }
 springBoot-starterActuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
@@ -34,6 +37,7 @@ springBoot-starterValidation = { module = "org.springframework.boot:spring-boot-
 springBoot-starterValidationTest = { module = "org.springframework.boot:spring-boot-starter-validation-test" }
 springBoot-starterWebmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 springBoot-starterWebmvcTest = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+springdoc-openapi-webmvc-api = { module = "org.springdoc:springdoc-openapi-starter-webmvc-api", version.ref = "springdoc" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
