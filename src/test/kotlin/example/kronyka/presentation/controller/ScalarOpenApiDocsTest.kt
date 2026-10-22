@@ -37,6 +37,19 @@ class ScalarOpenApiDocsTest {
     }
 
     @Test
+    fun `v3 api-docs endpoint formats Kotlin Uuid and Instant as proper OpenAPI scalar formats`() {
+        mockMvc.perform(
+            get("/v3/api-docs")
+                .accept(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.components.schemas['CreateVickreyAuctionRequest'].properties.startTime.format").value("date-time"))
+            .andExpect(jsonPath("$.components.schemas['CreateAuctionResponse'].properties.auctionId.format").value("uuid"))
+            .andExpect(jsonPath("$.components.schemas['AuctionDetailResponse'].properties.createdAt.format").value("date-time"))
+            .andExpect(jsonPath("$.components.schemas['AuctionDetailResponse'].properties.sellerId.format").value("uuid"))
+    }
+
+    @Test
     fun `scalar endpoint returns 200 OK HTML page referencing local api-docs and js bundle`() {
         val htmlResult = mockMvc.perform(get("/scalar"))
             .andExpect(status().isOk)

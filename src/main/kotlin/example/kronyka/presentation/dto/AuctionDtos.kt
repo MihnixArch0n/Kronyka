@@ -1,6 +1,5 @@
 package example.kronyka.presentation.dto
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import example.kronyka.domain.model.Auction
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
@@ -11,8 +10,28 @@ import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.PositiveOrZero
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
+
+object AuctionStatusSerializer : KSerializer<AuctionStatus> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("AuctionStatus", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: AuctionStatus) = encoder.encodeString(value.name)
+    override fun deserialize(decoder: Decoder): AuctionStatus = AuctionStatus.valueOf(decoder.decodeString())
+}
+
+object AuctionTypeSerializer : KSerializer<AuctionType> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("AuctionType", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: AuctionType) = encoder.encodeString(value.name)
+    override fun deserialize(decoder: Decoder): AuctionType = AuctionType.valueOf(decoder.decodeString())
+}
 
 fun VickreyAuction.toCreateResponse() = CreateAuctionResponse(
     auctionId = id,
@@ -61,89 +80,100 @@ fun VickreyBid.toRevealResponse() = RevealBidResponse(
     message = "Bid revealed successfully."
 )
 
+@Serializable
 data class CreateVickreyAuctionRequest(
     @field:NotBlank val title: String? = null,
     @field:NotNull
     @field:PositiveOrZero
-    @JsonProperty("reserve_price") val reservePrice: Long? = null,
+    @SerialName("reserve_price") val reservePrice: Long? = null,
     @field:NotNull
-    @JsonProperty("start_time") val startTime: Instant? = null,
+    @SerialName("start_time") val startTime: Instant? = null,
     @field:NotNull
-    @JsonProperty("commit_end_time") val commitEndTime: Instant? = null,
+    @SerialName("commit_end_time") val commitEndTime: Instant? = null,
     @field:NotNull
-    @JsonProperty("reveal_end_time") val revealEndTime: Instant? = null
+    @SerialName("reveal_end_time") val revealEndTime: Instant? = null
 )
 
+@Serializable
 data class CreateAuctionResponse(
-    @JsonProperty("auction_id") val auctionId: Uuid?,
+    @SerialName("auction_id") val auctionId: Uuid?,
     val title: String? = null,
+    @Serializable(with = AuctionTypeSerializer::class)
     val type: AuctionType? = null,
-    @JsonProperty("seller_id") val sellerId: Uuid? = null,
-    @JsonProperty("start_time") val startTime: Instant? = null,
-    @JsonProperty("commit_end_time") val commitEndTime: Instant? = null,
-    @JsonProperty("reveal_end_time") val revealEndTime: Instant? = null,
-    @JsonProperty("end_time") val endTime: Instant? = null,
+    @SerialName("seller_id") val sellerId: Uuid? = null,
+    @SerialName("start_time") val startTime: Instant? = null,
+    @SerialName("commit_end_time") val commitEndTime: Instant? = null,
+    @SerialName("reveal_end_time") val revealEndTime: Instant? = null,
+    @SerialName("end_time") val endTime: Instant? = null,
     val status: String? = null,
     val message: String? = null
 )
 
+@Serializable
 data class CancelAuctionResponse(
-    @JsonProperty("auction_id") val auctionId: Uuid,
+    @SerialName("auction_id") val auctionId: Uuid,
     val message: String = "Auction cancelled successfully"
 )
 
+@Serializable
 data class CommitBidRequest(
     @field:NotBlank
     @field:Pattern(
         regexp = "^[a-fA-F0-9]{64}$",
         message = "Blind hash must be a 64-character hexadecimal SHA-256 string"
     )
-    @JsonProperty("blind_hash") val blindHash: String? = null,
+    @SerialName("blind_hash") val blindHash: String? = null,
     @field:NotNull
     @field:Positive
-    @JsonProperty("lockup_deposit") val lockupDeposit: Long? = null
+    @SerialName("lockup_deposit") val lockupDeposit: Long? = null
 )
 
+@Serializable
 data class CommitBidResponse(
-    @JsonProperty("bid_id") val bidId: Uuid?,
-    @JsonProperty("auction_id") val auctionId: Uuid?,
-    @JsonProperty("locked_deposit") val lockedDeposit: Long?,
-    @JsonProperty("is_revealed") val isRevealed: Boolean? = null,
+    @SerialName("bid_id") val bidId: Uuid?,
+    @SerialName("auction_id") val auctionId: Uuid?,
+    @SerialName("locked_deposit") val lockedDeposit: Long?,
+    @SerialName("is_revealed") val isRevealed: Boolean? = null,
     val status: String? = null,
     val message: String? = null
 )
 
+@Serializable
 data class RevealBidRequest(
     @field:NotNull
     @field:Positive
-    @JsonProperty("actual_bid") val actualBid: Long? = null,
+    @SerialName("actual_bid") val actualBid: Long? = null,
     @field:NotBlank
-    @JsonProperty("secret_salt") val secretSalt: String? = null
+    @SerialName("secret_salt") val secretSalt: String? = null
 )
 
+@Serializable
 data class RevealBidResponse(
-    @JsonProperty("bid_id") val bidId: Uuid?,
-    @JsonProperty("actual_bid") val actualBid: Long?,
-    @JsonProperty("is_revealed") val isRevealed: Boolean? = null,
+    @SerialName("bid_id") val bidId: Uuid?,
+    @SerialName("actual_bid") val actualBid: Long?,
+    @SerialName("is_revealed") val isRevealed: Boolean? = null,
     val status: String? = null,
     val message: String? = null
 )
 
+@Serializable
 data class AuctionDetailResponse(
-    @JsonProperty("auction_id") val auctionId: Uuid?,
-    @JsonProperty("seller_id") val sellerId: Uuid,
+    @SerialName("auction_id") val auctionId: Uuid?,
+    @SerialName("seller_id") val sellerId: Uuid,
     val title: String,
+    @Serializable(with = AuctionTypeSerializer::class)
     val type: AuctionType,
+    @Serializable(with = AuctionStatusSerializer::class)
     val status: AuctionStatus,
-    @JsonProperty("start_time") val startTime: Instant,
-    @JsonProperty("end_time") val endTime: Instant,
-    @JsonProperty("winner_id") val winnerId: Uuid?,
-    @JsonProperty("final_price") val finalPrice: Long?,
+    @SerialName("start_time") val startTime: Instant,
+    @SerialName("end_time") val endTime: Instant,
+    @SerialName("winner_id") val winnerId: Uuid?,
+    @SerialName("final_price") val finalPrice: Long?,
     val version: Long,
-    @JsonProperty("created_at") val createdAt: Instant,
-    @JsonProperty("reserve_price") val reservePrice: Long? = null,
-    @JsonProperty("commit_end_time") val commitEndTime: Instant? = null,
-    @JsonProperty("reveal_end_time") val revealEndTime: Instant? = null,
-    @JsonProperty("second_bidder_id") val secondBidderId: Uuid? = null,
-    @JsonProperty("total_commitments") val totalCommitments: Long? = null
+    @SerialName("created_at") val createdAt: Instant,
+    @SerialName("reserve_price") val reservePrice: Long? = null,
+    @SerialName("commit_end_time") val commitEndTime: Instant? = null,
+    @SerialName("reveal_end_time") val revealEndTime: Instant? = null,
+    @SerialName("second_bidder_id") val secondBidderId: Uuid? = null,
+    @SerialName("total_commitments") val totalCommitments: Long? = null
 )
