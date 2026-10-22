@@ -41,6 +41,7 @@ All in-depth specifications are maintained under the [`docs/`](docs/) directory:
 
 - 🏛️ **Architecture & Design**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Clean Architecture layers, sequence flows, and concurrency control.
 - 📡 **REST API Specification**: [docs/API_SPEC.md](docs/API_SPEC.md) — Detailed contract for all 11 endpoints, request/response models, and status codes.
+- ⚡ **Interactive API Reference & Testing (Scalar)**: Access `http://localhost:8080/scalar` (OpenAPI spec at `/v3/api-docs`).
 - 🗄️ **Database Schema & DDL**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) — Tables (`users`, `auctions`, `vickrey_bids`), data types, constraints, and indexes.
 - 🤖 **AI Agents Context**: [docs/llm/](docs/llm/) — Context documentation and technical invariants for AI coding assistants (referenced in [AGENTS.md](AGENTS.md)).
 

@@ -1,7 +1,9 @@
 package example.kronyka.presentation.dto
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import kotlinx.serialization.Serializable
 
+@Serializable
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class ApiResponse<T>(
     val code: Int = 1000,

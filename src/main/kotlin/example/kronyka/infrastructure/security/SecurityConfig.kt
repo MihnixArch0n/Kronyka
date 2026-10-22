@@ -44,6 +44,14 @@ class SecurityConfig {
             .authorizeHttpRequests {
                 it.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                 it.requestMatchers(HttpMethod.GET, "/api/auctions", "/api/auctions/{id}").permitAll()
+                it.requestMatchers(
+                    HttpMethod.GET,
+                    "/scalar",
+                    "/scalar/**",
+                    "/v3/api-docs",
+                    "/v3/api-docs/**",
+                    "/v3/api-docs.yaml"
+                ).permitAll()
                 it.anyRequest().authenticated()
             }
         return http.build()

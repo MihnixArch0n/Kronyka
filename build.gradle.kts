@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.spring.boot)
     kotlin("plugin.lombok") version "2.4.20"
@@ -37,6 +38,9 @@ dependencies {
     implementation(libs.exposed.kotlinDatetime)
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.moduleKotlin)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.springdoc.openapi.webmvc.api)
+    implementation(libs.scalar.webmvc)
     runtimeOnly(libs.h2)
     runtimeOnly(libs.postgresql)
     testImplementation(libs.springBoot.starterActuatorTest)
