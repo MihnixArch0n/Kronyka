@@ -37,14 +37,21 @@ class ScalarOpenApiDocsTest {
     }
 
     @Test
-    fun `scalar endpoint returns 200 OK HTML page`() {
-        val result = mockMvc.perform(
-            get("/scalar")
-        )
+    fun `scalar endpoint returns 200 OK HTML page referencing local api-docs and js bundle`() {
+        val htmlResult = mockMvc.perform(get("/scalar"))
             .andExpect(status().isOk)
             .andReturn()
 
-        val content = result.response.contentAsString
-        content shouldContain "scalar"
+        val htmlContent = htmlResult.response.contentAsString
+        htmlContent shouldContain "<div id=\"app\"></div>"
+        htmlContent shouldContain "Scalar.createApiReference"
+        htmlContent shouldContain "<title>Kronyka Auction API Reference</title>"
+        htmlContent shouldContain "\"/v3/api-docs\""
+
+        val jsResult = mockMvc.perform(get("/scalar/scalar.js"))
+            .andExpect(status().isOk)
+            .andReturn()
+
+        jsResult.response.contentType shouldContain "application/javascript"
     }
 }

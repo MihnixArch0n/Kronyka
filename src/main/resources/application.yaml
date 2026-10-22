@@ -32,6 +32,10 @@ scalar:
   enabled: true
   url: /v3/api-docs
   path: /scalar
+  page-title: "Kronyka Auction API Reference"
+  theme: deepSpace
+  authentication:
+    preferred-security-scheme: BearerAuth
 
 
 
