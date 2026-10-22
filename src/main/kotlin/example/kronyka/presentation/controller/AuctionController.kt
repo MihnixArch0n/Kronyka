@@ -6,8 +6,10 @@ import example.kronyka.domain.service.VickreyAuctionService
 import example.kronyka.presentation.dto.*
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
+import java.util.UUID
 import kotlin.uuid.Uuid
 
 @RestController
@@ -20,11 +22,11 @@ class AuctionController(
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
     fun createVickreyAuction(
-        @RequestHeader("X-User-Id") sellerId: Uuid,
+        @AuthenticationPrincipal sellerId: UUID,
         @Valid @RequestBody request: CreateVickreyAuctionRequest
     ): ApiResponse<CreateAuctionResponse> {
         val vickreyAuction = vickreyAuctionService.createVickreyAuction(
-            sellerId = sellerId,
+            sellerId = Uuid.parse(sellerId.toString()),
             title = request.title!!,
             startTime = request.startTime!!,
             reservePrice = request.reservePrice!!,
@@ -51,9 +53,9 @@ class AuctionController(
     @Transactional
     fun cancelAuction(
         @PathVariable id: Uuid,
-        @RequestHeader("X-User-Id") sellerId: Uuid,
+        @AuthenticationPrincipal sellerId: UUID,
     ): ApiResponse<CancelAuctionResponse> {
-        auctionService.cancelAuction(auctionId = id, userId = sellerId)
+        auctionService.cancelAuction(auctionId = id, userId = Uuid.parse(sellerId.toString()))
         return ApiResponse.success(CancelAuctionResponse(auctionId = id))
     }
 
@@ -62,12 +64,12 @@ class AuctionController(
     @Transactional
     fun commitBid(
         @PathVariable id: Uuid,
-        @RequestHeader("X-User-Id") bidderId: Uuid,
+        @AuthenticationPrincipal bidderId: UUID,
         @Valid @RequestBody request: CommitBidRequest
     ): ApiResponse<CommitBidResponse> {
         val bid = vickreyAuctionService.commitBid(
             auctionId = id,
-            bidderId = bidderId,
+            bidderId = Uuid.parse(bidderId.toString()),
             blindHash = request.blindHash!!,
             lockupDeposit = request.lockupDeposit!!
         )
@@ -80,12 +82,12 @@ class AuctionController(
     @Transactional
     fun revealBid(
         @PathVariable id: Uuid,
-        @RequestHeader("X-User-Id") bidderId: Uuid,
+        @AuthenticationPrincipal bidderId: UUID,
         @Valid @RequestBody request: RevealBidRequest
     ): ApiResponse<RevealBidResponse> {
         val bid = vickreyAuctionService.revealBid(
             auctionId = id,
-            bidderId = bidderId,
+            bidderId = Uuid.parse(bidderId.toString()),
             actualBid = request.actualBid!!,
             secretSalt = request.secretSalt!!
         )

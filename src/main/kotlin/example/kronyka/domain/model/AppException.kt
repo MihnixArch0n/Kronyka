@@ -13,4 +13,3 @@ open class AppException(
     constructor(message: String) : this(ErrorCode.UNCATEGORIZED_EXCEPTION, message, null)
     constructor(message: String, cause: Throwable?) : this(ErrorCode.UNCATEGORIZED_EXCEPTION, message, cause)
 }
-

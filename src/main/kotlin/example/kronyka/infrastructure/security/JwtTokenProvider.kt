@@ -49,6 +49,9 @@ class JwtTokenProvider(
             val parts = token.split(".")
             if (parts.size != 3) return false
 
+            val header = objectMapper.readTree(base64UrlDecoder.decode(parts[0]))
+            if (header.get("alg")?.asString() != "HS256") return false
+
             val content = "${parts[0]}.${parts[1]}"
             val expectedSignature = sign(content)
 
@@ -64,7 +67,7 @@ class JwtTokenProvider(
             val payload = objectMapper.readTree(payloadJson)
 
             val exp = payload.get("exp")?.asLong() ?: return false
-            Instant.now().epochSecond < exp
+            Instant.now().epochSecond < exp && getUserIdFromToken(token) != null
         } catch (_: Exception) {
             false
         }
