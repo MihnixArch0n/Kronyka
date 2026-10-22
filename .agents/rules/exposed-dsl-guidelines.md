@@ -18,7 +18,7 @@ package example.kronyka.infrastructure.persistence.tables
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.timestamp
 
-object UsersTable : Table("users") {
+object UserTable : Table("\"user\"") {
     val id = uuid("id")
     val username = varchar("username", 50).uniqueIndex()
     val passwordHash = varchar("password_hash", 100)
@@ -36,24 +36,24 @@ object UsersTable : Table("users") {
 - Each repository adapter in `infrastructure/persistence/` should map `ResultRow` to pure domain models via private extension functions:
 ```kotlin
 private fun ResultRow.toDomain(): User = User(
-    id = this[UsersTable.id],
-    username = this[UsersTable.username],
-    passwordHash = this[UsersTable.passwordHash],
-    fullName = this[UsersTable.fullName],
-    createdAt = this[UsersTable.createdAt]
+    id = this[UserTable.id],
+    username = this[UserTable.username],
+    passwordHash = this[UserTable.passwordHash],
+    fullName = this[UserTable.fullName],
+    createdAt = this[UserTable.createdAt]
 )
 ```
-- Modern Exposed syntax: Prefer `AuctionsTable.selectAll().where { ... }` over legacy `select { ... }`.
+- Modern Exposed syntax: Prefer `AuctionTable.selectAll().where { ... }` over legacy `select { ... }`.
 
 ## 4. Concurrency & Atomic Updates
 
 ### 4.1. Dutch Auction Optimistic Locking
 To prevent race conditions when multiple buyers click "Buy Now" simultaneously:
 ```kotlin
-val updatedRows = AuctionsTable.update({
-    (AuctionsTable.id eq auctionId) and
-    (AuctionsTable.status eq "ACTIVE") and
-    (AuctionsTable.version eq expectedVersion)
+val updatedRows = AuctionTable.update({
+    (AuctionTable.id eq auctionId) and
+    (AuctionTable.status eq "ACTIVE") and
+    (AuctionTable.version eq expectedVersion)
 }) {
     it[status] = "SOLD"
     it[winnerId] = buyerId
@@ -67,10 +67,10 @@ if (updatedRows == 0) {
 ```
 
 ### 4.2. Upsert for Vickrey Bids
-Because `vickrey_bids` has `UNIQUE(auction_id, bidder_id)`:
+Because `vickrey_bid` has `UNIQUE(auction_id, bidder_id)`:
 ```kotlin
-VickreyBidsTable.upsert(
-    keys = arrayOf(VickreyBidsTable.auctionId, VickreyBidsTable.bidderId)
+VickreyBidTable.upsert(
+    keys = arrayOf(VickreyBidTable.auctionId, VickreyBidTable.bidderId)
 ) {
     it[id] = UUID.randomUUID()
     it[auctionId] = bid.auctionId

@@ -63,7 +63,7 @@ When `POST /api/auctions/{id}/buy-dutch` is received:
 2. Compute `P(now)`.
 3. Perform atomic update with version check:
    ```sql
-   UPDATE auctions
+   UPDATE auction
    SET status = 'SOLD', winner_id = :buyer_id, final_price = :price, version = version + 1
    WHERE id = :auction_id AND status = 'ACTIVE' AND version = :expected_version;
    ```

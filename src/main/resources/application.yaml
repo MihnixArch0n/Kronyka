@@ -9,7 +9,33 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:kronyka}
     password: ${SPRING_DATASOURCE_PASSWORD:kronyka_secret}
     driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
   exposed:
     generate-ddl: true
     show-sql: true
+
+kronyka:
+  auction:
+    settlement:
+      enabled: true
+      fixed-delay-ms: 5000
+      batch-size: 50
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+scalar:
+  enabled: true
+  url: /v3/api-docs
+  path: /scalar
+  page-title: "Kronyka Auction API Reference"
+  theme: deepSpace
+  authentication:
+    preferred-security-scheme: BearerAuth
+
+
 

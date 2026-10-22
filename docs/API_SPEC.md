@@ -3,8 +3,9 @@
 Kronyka exposes a RESTful JSON API. All authenticated endpoints require the `Authorization` header with a Bearer JWT:  
 `Authorization: Bearer <jwt-token>`
 
-Interactive API documentation is also generated automatically via OpenAPI / Swagger at:  
-`/swagger-ui/index.html` (or `/swagger-ui.html`)
+Interactive API documentation and client testing are served via **Scalar API Reference** at:  
+- **Scalar UI**: `http://localhost:8080/scalar`  
+- **OpenAPI 3 JSON Spec**: `http://localhost:8080/v3/api-docs` (and `/v3/api-docs.yaml`)
 
 ---
 
@@ -96,8 +97,9 @@ Interactive API documentation is also generated automatically via OpenAPI / Swag
     "title": "Crypto Domain: rare.eth",
     "type": "VICKREY",
     "reserve_price": 500000,
-    "commit_duration_seconds": 3600,
-    "reveal_duration_seconds": 1800
+    "start_time": "2026-10-01T08:00:00Z",
+    "commit_end_time": "2026-10-01T09:00:00Z",
+    "reveal_end_time": "2026-10-01T09:30:00Z"
   }
   ```
 - **Payload for Dutch**:
