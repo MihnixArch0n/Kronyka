@@ -1,5 +1,7 @@
 package example.kronyka.infrastructure.config
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNamingStrategy
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.format.FormatterRegistry
@@ -22,6 +24,15 @@ class WebConfig : WebMvcConfigurer {
 
     override fun addFormatters(registry: FormatterRegistry) {
         registry.addConverter(String::class.java, Uuid::class.java) { Uuid.parse(it) }
+    }
+
+    @Bean
+    fun json(): Json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        encodeDefaults = true
+        explicitNulls = false
+        namingStrategy = JsonNamingStrategy.SnakeCase
     }
 
     @Bean
