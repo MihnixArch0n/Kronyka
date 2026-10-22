@@ -1,7 +1,10 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.spring.boot)
+    kotlin("plugin.lombok") version "2.4.20"
+    kotlin("plugin.jpa") version "2.4.20"
 }
 
 group = "example"
@@ -19,6 +22,8 @@ repositories {
 }
 
 dependencies {
+    implementation("org.projectlombok:lombok")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     val springBootBom = platform(libs.springBoot.dependencies)
     implementation(springBootBom)
 
@@ -30,8 +35,12 @@ dependencies {
     implementation(libs.exposed.springBoot4Starter)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.javaTime)
+    implementation(libs.exposed.kotlinDatetime)
     implementation(libs.kotlin.reflect)
     implementation(libs.jackson.moduleKotlin)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.springdoc.openapi.webmvc.api)
+    implementation(libs.scalar.webmvc)
     runtimeOnly(libs.h2)
     runtimeOnly(libs.postgresql)
     testImplementation(libs.springBoot.starterActuatorTest)
@@ -40,6 +49,12 @@ dependencies {
     testImplementation(libs.springBoot.starterWebmvcTest)
     testImplementation(libs.kotlin.testJunit5)
     testRuntimeOnly(libs.junit.platformLauncher)
+    testImplementation(kotlin("test"))
+    testImplementation(platform(libs.kotest.bom))
+    testImplementation(libs.kotest.runnerJunit5)
+    testImplementation(libs.kotest.assertionsCore)
+    testImplementation(libs.mockk)
+    testImplementation(libs.springmockk)
 }
 
 kotlin {
