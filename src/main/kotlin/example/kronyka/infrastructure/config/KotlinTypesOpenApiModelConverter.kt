@@ -55,9 +55,26 @@ class KotlinTypesOpenApiModelConverter : ModelConverter {
 
     private fun isTargetType(type: Type?, targetClass: Class<*>): Boolean {
         if (type == null) return false
-        if (type == targetClass) return true
-        if (type is Class<*> && targetClass.isAssignableFrom(type)) return true
+        val raw = extractRawClass(type)
+        if (raw == targetClass || (raw != null && targetClass.isAssignableFrom(raw))) return true
+        val str = type.toString()
         val typeName = type.typeName
-        return typeName == targetClass.name || typeName.startsWith("${targetClass.name}<")
+        return targetClass.name in typeName || targetClass.name in str
+    }
+
+    private fun extractRawClass(type: Type?): Class<*>? {
+        if (type == null) return null
+        if (type is Class<*>) return type
+        try {
+            val method = type.javaClass.getMethod("getRawClass")
+            val raw = method.invoke(type)
+            if (raw is Class<*>) return raw
+        } catch (_: Throwable) {
+        }
+        if (type is java.lang.reflect.ParameterizedType) {
+            val raw = type.rawType
+            if (raw is Class<*>) return raw
+        }
+        return null
     }
 }
