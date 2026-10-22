@@ -15,3 +15,17 @@ kronyka:
       fixed-delay-ms: 1000
       batch-size: 10
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+scalar:
+  enabled: true
+  url: /v3/api-docs
+  path: /scalar
+  page-title: "Kronyka Auction API Reference"
+  theme: deepSpace
+  authentication:
+    preferred-security-scheme: BearerAuth
+
+

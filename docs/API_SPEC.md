@@ -3,8 +3,9 @@
 Kronyka exposes a RESTful JSON API. All authenticated endpoints require the `Authorization` header with a Bearer JWT:  
 `Authorization: Bearer <jwt-token>`
 
-Interactive API documentation is also generated automatically via OpenAPI / Swagger at:  
-`/swagger-ui/index.html` (or `/swagger-ui.html`)
+Interactive API documentation and client testing are served via **Scalar API Reference** at:  
+- **Scalar UI**: `http://localhost:8080/scalar`  
+- **OpenAPI 3 JSON Spec**: `http://localhost:8080/v3/api-docs` (and `/v3/api-docs.yaml`)
 
 ---
 
