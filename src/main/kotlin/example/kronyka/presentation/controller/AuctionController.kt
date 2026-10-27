@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
 import kotlin.uuid.Uuid
@@ -28,7 +29,7 @@ class AuctionController(
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
     fun createVickreyAuction(
-        @RequestHeader("X-User-Id") sellerId: Uuid,
+        @AuthenticationPrincipal sellerId: Uuid,
         @Valid @RequestBody request: CreateVickreyAuctionRequest
     ): ApiResponse<CreateAuctionResponse> {
         val vickreyAuction = vickreyAuctionService.createVickreyAuction(
@@ -67,7 +68,7 @@ class AuctionController(
     @Transactional
     fun cancelAuction(
         @PathVariable id: Uuid,
-        @RequestHeader("X-User-Id") sellerId: Uuid,
+        @AuthenticationPrincipal sellerId: Uuid,
     ): ApiResponse<CancelAuctionResponse> {
         auctionService.cancelAuction(auctionId = id, userId = sellerId)
         return ApiResponse.success(CancelAuctionResponse(auctionId = id))
@@ -82,7 +83,7 @@ class AuctionController(
     @Transactional
     fun commitBid(
         @PathVariable id: Uuid,
-        @RequestHeader("X-User-Id") bidderId: Uuid,
+        @AuthenticationPrincipal bidderId: Uuid,
         @Valid @RequestBody request: CommitBidRequest
     ): ApiResponse<CommitBidResponse> {
         val bid = vickreyAuctionService.commitBid(
@@ -104,7 +105,7 @@ class AuctionController(
     @Transactional
     fun revealBid(
         @PathVariable id: Uuid,
-        @RequestHeader("X-User-Id") bidderId: Uuid,
+        @AuthenticationPrincipal bidderId: Uuid,
         @Valid @RequestBody request: RevealBidRequest
     ): ApiResponse<RevealBidResponse> {
         val bid = vickreyAuctionService.revealBid(
