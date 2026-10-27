@@ -81,6 +81,12 @@ fun VickreyBid.toRevealResponse() = RevealBidResponse(
 )
 
 @Serializable
+data class AuctionPageResponse(
+    val total: Long,
+    val items: List<AuctionDetailResponse>
+)
+
+@Serializable
 data class CreateVickreyAuctionRequest(
     @field:NotBlank val title: String? = null,
     @field:NotNull
