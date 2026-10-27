@@ -36,6 +36,10 @@ class ExposedVickreyBidRepositoryTest {
     private fun insertTestUser(userId: Uuid = Uuid.generateV7()): Uuid {
         UserTable.insert {
             it[id] = userId
+            it[username] = userId.toString()
+            it[passwordHash] = "test-hash"
+            it[fullName] = "Test User"
+            it[createdAt] = Clock.System.now()
         }
         return userId
     }

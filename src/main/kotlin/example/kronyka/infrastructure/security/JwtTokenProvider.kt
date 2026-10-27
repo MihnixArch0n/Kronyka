@@ -6,9 +6,9 @@ import org.springframework.stereotype.Component
 import tools.jackson.databind.ObjectMapper
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import java.time.Instant
+import kotlin.time.Clock
 import java.util.Base64
-import java.util.UUID
+import kotlin.uuid.Uuid
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -24,7 +24,7 @@ class JwtTokenProvider(
     private val base64UrlDecoder = Base64.getUrlDecoder()
 
     fun generateToken(user: User): String {
-        val now = Instant.now().epochSecond
+        val now = Clock.System.now().epochSeconds
         val exp = now + validityInSeconds
 
         val headerMap = mapOf("alg" to "HS256", "typ" to "JWT")
@@ -67,20 +67,20 @@ class JwtTokenProvider(
             val payload = objectMapper.readTree(payloadJson)
 
             val exp = payload.get("exp")?.asLong() ?: return false
-            Instant.now().epochSecond < exp && getUserIdFromToken(token) != null
+            Clock.System.now().epochSeconds < exp && getUserIdFromToken(token) != null
         } catch (_: Exception) {
             false
         }
     }
 
-    fun getUserIdFromToken(token: String): UUID? {
+    fun getUserIdFromToken(token: String): Uuid? {
         return try {
             val parts = token.split(".")
             if (parts.size != 3) return null
             val payloadJson = String(base64UrlDecoder.decode(parts[1]), StandardCharsets.UTF_8)
             val payload = objectMapper.readTree(payloadJson)
             val sub = payload.get("sub")?.asString() ?: return null
-            UUID.fromString(sub)
+            Uuid.parse(sub)
         } catch (_: Exception) {
             null
         }

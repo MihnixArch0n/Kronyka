@@ -28,8 +28,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.client.RestTestClient
 import org.springframework.test.web.servlet.client.expectBody
-import java.time.LocalDateTime
-import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
@@ -60,11 +58,11 @@ class AuctionControllerTest {
 
     private fun authorizationHeader(id: Uuid): String {
         val user = User(
-            id = UUID.fromString(id.toString()),
+            id = id,
             username = "test-user",
             passwordHash = "unused",
             fullName = "Test User",
-            createdAt = LocalDateTime.now()
+            createdAt = Clock.System.now()
         )
         return "Bearer ${jwtTokenProvider.generateToken(user)}"
     }

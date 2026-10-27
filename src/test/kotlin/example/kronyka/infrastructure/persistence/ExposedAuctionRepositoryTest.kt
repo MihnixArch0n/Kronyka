@@ -8,6 +8,7 @@ import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -28,9 +29,29 @@ class ExposedAuctionRepositoryTest {
     @Autowired
     private lateinit var auctionRepository: ExposedAuctionRepository
 
+    @Autowired
+    private lateinit var userRepository: ExposedUserRepository
+
+    @Test
+    fun `registered user can be an auction seller`() = runBlocking {
+        val user = userRepository.create(Uuid.generateV7().toString(), "test-hash", "Seller")
+        val persistedUser = userRepository.findById(user.id).shouldNotBeNull()
+        persistedUser.id shouldBe user.id
+        persistedUser.createdAt.epochSeconds shouldBe user.createdAt.epochSeconds
+
+        val auction = createVickreyAuction(sellerId = user.id)
+        auctionRepository.save(auction)
+
+        auctionRepository.findById(auction.id).shouldNotBeNull().sellerId shouldBe user.id
+    }
+
     private fun insertTestUser(userId: Uuid = Uuid.generateV7()): Uuid {
         UserTable.insert {
             it[id] = userId
+            it[username] = userId.toString()
+            it[passwordHash] = "test-hash"
+            it[fullName] = "Test User"
+            it[createdAt] = Clock.System.now()
         }
         return userId
     }

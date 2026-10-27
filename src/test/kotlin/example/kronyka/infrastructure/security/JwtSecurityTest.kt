@@ -17,9 +17,10 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 import tools.jackson.databind.ObjectMapper
-import java.time.LocalDateTime
-import java.util.UUID
+import kotlin.time.Clock
+import kotlin.uuid.Uuid
 
+@OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 @WebMvcTest(
     controllers = [JwtSecurityTest.JwtSecurityProbe::class],
     excludeAutoConfiguration = [ExposedAutoConfiguration::class]
@@ -48,7 +49,7 @@ class JwtSecurityTest {
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auth/register"),
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auth/login"),
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auctions"),
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auctions/${UUID.randomUUID()}")
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auctions/${Uuid.generateV7()}")
         )
 
         publicRequests.forEach { request ->
@@ -60,8 +61,8 @@ class JwtSecurityTest {
     fun `protected routes reject missing authentication with bearer challenge`() {
         val protectedRequests = listOf(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auctions"),
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auctions/${UUID.randomUUID()}/buy-dutch"),
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auctions/${UUID.randomUUID()}/bids"),
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auctions/${Uuid.generateV7()}/buy-dutch"),
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auctions/${Uuid.generateV7()}/bids"),
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/private")
         )
 
@@ -75,8 +76,8 @@ class JwtSecurityTest {
         val protectedRequests = listOf(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auth/register"),
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auth/login"),
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auctions/${UUID.randomUUID()}"),
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auctions/${UUID.randomUUID()}/nested")
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/auctions/${Uuid.generateV7()}"),
+            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auctions/${Uuid.generateV7()}/nested")
         )
 
         protectedRequests.forEach { request ->
@@ -107,7 +108,7 @@ class JwtSecurityTest {
         val result = mockMvc.perform(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/auth/me")
                 .header("Authorization", "Bearer ${jwtTokenProvider.generateToken(user)}")
-                .header("X-User-Id", UUID.randomUUID().toString())
+                .header("X-User-Id", Uuid.generateV7().toString())
         ).andReturn()
 
         result.response.status shouldBe 200
@@ -131,11 +132,11 @@ class JwtSecurityTest {
     }
 
     private fun user(): User = User(
-        id = UUID.randomUUID(),
+        id = Uuid.generateV7(),
         username = "security-test-user",
         passwordHash = "unused",
         fullName = "Security Test User",
-        createdAt = LocalDateTime.now()
+        createdAt = Clock.System.now()
     )
 
     private fun assertUnauthenticated(result: MvcResult) {
@@ -150,7 +151,7 @@ class JwtSecurityTest {
     @RestController
     class JwtSecurityProbe {
         @GetMapping("/api/auth/me")
-        fun me(@AuthenticationPrincipal userId: UUID): String = userId.toString()
+        fun me(@AuthenticationPrincipal userId: Uuid): String = userId.toString()
 
         @PostMapping("/api/auth/register", "/api/auth/login")
         fun publicAuth(): String = "public"

@@ -15,7 +15,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 @Tag(name = "Authentication", description = "Endpoints for user registration, authentication, and profile lookup")
 @RestController
@@ -83,7 +83,7 @@ class AuthController(
     )
     @GetMapping("/me")
     fun getCurrentUser(
-        @AuthenticationPrincipal userId: UUID
+        @AuthenticationPrincipal userId: Uuid
     ): ResponseEntity<ApiResponse<UserProfileResponse>> = runBlocking {
         val user = userRepository.findById(userId)
             ?: throw AppException(ErrorCode.USER_NOT_FOUND, "User not found")
