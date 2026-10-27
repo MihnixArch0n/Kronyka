@@ -1,53 +1,52 @@
-
 package example.kronyka.domain.service
 
-import java.math.BigDecimal
-import java.time.Duration
-import java.time.Instant
+import kotlin.time.Instant
 
 class DutchPriceCalculator {
 
     fun calculatePrice(
-        startPrice: BigDecimal,
-        floorPrice: BigDecimal,
-        stepDecrement: BigDecimal,
+        startPrice: Long,
+        floorPrice: Long,
+        stepDecrement: Long,
         stepIntervalSeconds: Long,
         startTime: Instant,
         currentTime: Instant
-    ): BigDecimal {
+    ): Long {
 
-        // Kiem tra du lieu dau vao
         require(startPrice >= floorPrice) {
             "Start price must be >= floor price"
         }
-        require(floorPrice >= BigDecimal.ZERO) {
+
+        require(floorPrice >= 0) {
             "Floor price must not be negative"
         }
-        require(stepDecrement > BigDecimal.ZERO) {
+
+        require(stepDecrement > 0) {
             "Step decrement must be positive"
         }
+
         require(stepIntervalSeconds > 0) {
             "Step interval must be positive"
         }
 
-        // Tinh so giay da troi qua
-        val elapsedSeconds = Duration.between(
-            startTime,
-            currentTime
-        ).seconds.coerceAtLeast(0)
+        // Tính số giây đã trôi qua
+        val elapsedSeconds =
+            (currentTime - startTime).inWholeSeconds.coerceAtLeast(0)
 
-        // Tinh so nac gia da giam
+        // Tính số nấc giá đã giảm
         val steps = elapsedSeconds / stepIntervalSeconds
 
-        // Tinh tong so tien giam
-        val discount = stepDecrement.multiply(
-            BigDecimal.valueOf(steps)
-        )
+        // Tránh tràn số khi tính tổng tiền giảm
+        val maxStepsToFloor =
+            (startPrice - floorPrice) / stepDecrement +
+                    if ((startPrice - floorPrice) % stepDecrement != 0L) 1L else 0L
 
-        // Tinh gia hien tai
-        val currentPrice = startPrice.subtract(discount)
+        if (steps >= maxStepsToFloor) {
+            return floorPrice
+        }
 
-        // Khong cho gia thap hon gia san
-        return currentPrice.max(floorPrice)
+        val discount = steps * stepDecrement
+
+        return (startPrice - discount).coerceAtLeast(floorPrice)
     }
 }
