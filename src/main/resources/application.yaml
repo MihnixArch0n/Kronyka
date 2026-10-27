@@ -1,3 +1,6 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 spring:
   application:
     name: Kronyka
@@ -10,6 +13,7 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:kronyka_secret}
     driver-class-name: org.postgresql.Driver
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -17,12 +21,32 @@ spring:
     generate-ddl: true
     show-sql: true
 
+jwt:
+  secret: ${JWT_SECRET:kronyka-default-super-secret-hmac-sha256-key-32-chars-minimum!}
+  expiration: ${JWT_EXPIRATION:86400}
+
 kronyka:
   auction:
     settlement:
+      enabled: ${KRONYKA_AUCTION_SETTLEMENT_ENABLED:true}
+      fixed-delay-ms: ${KRONYKA_AUCTION_SETTLEMENT_FIXED_DELAY_MS:5000}
+      batch-size: ${KRONYKA_AUCTION_SETTLEMENT_BATCH_SIZE:50}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
       enabled: true
-      fixed-delay-ms: 5000
-      batch-size: 50
+    readinessstate:
+      enabled: true
 
 springdoc:
   api-docs:
@@ -36,6 +60,3 @@ scalar:
   theme: deepSpace
   authentication:
     preferred-security-scheme: BearerAuth
-
-
-
