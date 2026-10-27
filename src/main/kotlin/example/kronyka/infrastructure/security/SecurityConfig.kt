@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.core.userdetails.UserDetailsService
+import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
@@ -21,6 +23,11 @@ class SecurityConfig {
 
     @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
+
+    @Bean
+    fun userDetailsService(): UserDetailsService = UserDetailsService { username ->
+        throw UsernameNotFoundException("User $username not found via in-memory provider; use stateless JWT authentication.")
+    }
 
     @Bean
     fun securityFilterChain(
@@ -45,12 +52,14 @@ class SecurityConfig {
                 it.requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                 it.requestMatchers(HttpMethod.GET, "/api/auctions", "/api/auctions/{id}").permitAll()
                 it.requestMatchers(
-                    HttpMethod.GET,
                     "/scalar",
                     "/scalar/**",
                     "/v3/api-docs",
                     "/v3/api-docs/**",
-                    "/v3/api-docs.yaml"
+                    "/v3/api-docs.yaml",
+                    "/actuator/health",
+                    "/actuator/health/**",
+                    "/actuator/info"
                 ).permitAll()
                 it.anyRequest().authenticated()
             }

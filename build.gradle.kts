@@ -3,8 +3,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.spring.boot)
-    kotlin("plugin.lombok") version "2.4.20"
-    kotlin("plugin.jpa") version "2.4.20"
 }
 
 group = "example"
@@ -22,8 +20,6 @@ repositories {
 }
 
 dependencies {
-    implementation("org.projectlombok:lombok")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     val springBootBom = platform(libs.springBoot.dependencies)
     implementation(springBootBom)
 
@@ -33,7 +29,6 @@ dependencies {
     implementation(libs.springBoot.starterValidation)
     implementation(libs.springBoot.starterWebmvc)
     implementation(libs.exposed.springBoot4Starter)
-    implementation(libs.exposed.dao)
     implementation(libs.exposed.javaTime)
     implementation(libs.exposed.kotlinDatetime)
     implementation(libs.kotlin.reflect)
@@ -61,6 +56,15 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjsr305=strict")
     }
+}
+
+springBoot {
+    mainClass.set("example.kronyka.KronykaApplicationKt")
+    buildInfo()
+}
+
+tasks.named<Jar>("jar") {
+    enabled = false
 }
 
 tasks.withType<Test> {
