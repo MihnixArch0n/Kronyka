@@ -56,6 +56,53 @@ class AuctionControllerTest {
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
 
+    @Test
+    fun `listing is public and uses default pagination`() {
+        every { auctionService.getAuctions(null, null, 0, 20) } returns AuctionPage(emptyList(), 0L)
+
+        val response = restTestClient.get().uri("/api/auctions").exchange()
+            .expectStatus().isOk
+            .expectBody<ApiResponse<AuctionPageResponse>>().returnResult().responseBody.shouldNotBeNull()
+
+        response.code shouldBe 1000
+        response.result.shouldNotBeNull().total shouldBe 0L
+        response.result.items shouldBe emptyList()
+    }
+
+    @Test
+    fun `listing forwards filters and pagination and maps public DTOs`() {
+        val auction = sampleVickreyAuction(status = AuctionStatus.CANCELLED)
+        every { auctionService.getAuctions(AuctionType.VICKREY, AuctionStatus.CANCELLED, 1, 5) } returns
+            AuctionPage(listOf(auction), 6L)
+
+        val response = restTestClient.get()
+            .uri("/api/auctions?type=VICKREY&status=CANCELLED&page=1&size=5").exchange()
+            .expectStatus().isOk
+            .expectBody<ApiResponse<AuctionPageResponse>>().returnResult().responseBody.shouldNotBeNull()
+
+        val result = response.result.shouldNotBeNull()
+        result.total shouldBe 6L
+        result.items.single().auctionId shouldBe auction.id
+        result.items.single().status shouldBe AuctionStatus.CANCELLED
+        verify { auctionService.getAuctions(AuctionType.VICKREY, AuctionStatus.CANCELLED, 1, 5) }
+    }
+
+    @Test
+    fun `invalid listing parameter types return bad request`() {
+        listOf("type=UNKNOWN", "status=UNKNOWN", "page=abc", "size=2147483648").forEach { query ->
+            restTestClient.get().uri("/api/auctions?$query").exchange().expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `invalid pagination from service returns bad request`() {
+        every { auctionService.getAuctions(null, null, -1, 20) } throws IllegalArgumentException("Page must be zero or greater")
+        every { auctionService.getAuctions(null, null, 0, 101) } throws IllegalArgumentException("Size must be between 1 and 100")
+        listOf("page=-1", "size=101").forEach { query ->
+            restTestClient.get().uri("/api/auctions?$query").exchange().expectStatus().isBadRequest
+        }
+    }
+
     private fun authorizationHeader(id: Uuid): String {
         val user = User(
             id = id,

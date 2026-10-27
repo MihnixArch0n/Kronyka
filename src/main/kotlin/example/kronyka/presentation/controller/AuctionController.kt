@@ -1,6 +1,8 @@
 package example.kronyka.presentation.controller
 
 import example.kronyka.domain.model.VickreyAuction
+import example.kronyka.domain.model.AuctionStatus
+import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.service.AuctionService
 import example.kronyka.domain.service.VickreyAuctionService
 import example.kronyka.presentation.dto.*
@@ -21,6 +23,23 @@ class AuctionController(
     private val auctionService: AuctionService,
     private val vickreyAuctionService: VickreyAuctionService
 ) {
+    @Operation(
+        summary = "List auctions",
+        description = "Filters by stored type and status, newest first; page is zero-based and size is 1 to 100"
+    )
+    @GetMapping("/auctions")
+    fun getAuctions(
+        @RequestParam(required = false) type: AuctionType?,
+        @RequestParam(required = false) status: AuctionStatus?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): ApiResponse<AuctionPageResponse> {
+        val auctions = auctionService.getAuctions(type, status, page, size)
+        return ApiResponse.success(
+            AuctionPageResponse(total = auctions.total, items = auctions.items.map { it.toDetailResponse() })
+        )
+    }
+
     @Operation(
         summary = "Create a new Vickrey auction",
         description = "Creates a sealed-bid Vickrey auction with reserve price, commit window, and reveal window"

@@ -22,9 +22,17 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.ServletRequestBindingException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException::class)
+    fun handleTypeMismatch(ex: MethodArgumentTypeMismatchException): ResponseEntity<ApiResponse<Unit>> {
+        val errorCode = ErrorCode.BAD_REQUEST
+        return ResponseEntity.status(errorCode.httpStatus)
+            .body(ApiResponse.error<Unit>(errorCode, "Invalid value for parameter '${ex.name}'"))
+    }
 
     @ExceptionHandler(AppException::class)
     fun handleAppException(
