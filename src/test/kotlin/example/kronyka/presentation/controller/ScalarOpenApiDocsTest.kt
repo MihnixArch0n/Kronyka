@@ -37,6 +37,79 @@ class ScalarOpenApiDocsTest {
     }
 
     @Test
+    fun `v3 api-docs endpoint documents all 9 implemented endpoints with paths and methods`() {
+        mockMvc.perform(
+            get("/v3/api-docs")
+                .accept(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isOk)
+            // Auth endpoints
+            .andExpect(jsonPath("$.paths['/api/auth/register'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/auth/login'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/auth/me'].get").exists())
+            // Auction endpoints
+            .andExpect(jsonPath("$.paths['/api/auctions'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post").exists())
+    }
+
+    @Test
+    fun `v3 api-docs endpoint documents detailed error status codes across all implemented endpoints`() {
+        mockMvc.perform(
+            get("/v3/api-docs")
+                .accept(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isOk)
+            // Auth errors
+            .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['409']").exists())
+            .andExpect(jsonPath("$.paths['/api/auth/login'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auth/login'].post.responses['401']").exists())
+            .andExpect(jsonPath("$.paths['/api/auth/me'].get.responses['401']").exists())
+            .andExpect(jsonPath("$.paths['/api/auth/me'].get.responses['404']").exists())
+
+            // Auction list & create errors
+            .andExpect(jsonPath("$.paths['/api/auctions'].get.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions'].post.responses['401']").exists())
+
+            // Auction details & cancel errors
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].get.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].get.responses['404']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.responses['401']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.responses['403']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.responses['404']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.responses['409']").exists())
+
+            // Commit & reveal errors
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['401']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['404']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['401']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['404']").exists())
+    }
+
+    @Test
+    fun `v3 api-docs endpoint embeds specific error examples for Scalar interactive inspection`() {
+        mockMvc.perform(
+            get("/v3/api-docs")
+                .accept(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isOk)
+            // Verify specific example objects in responses
+            .andExpect(jsonPath("$.paths['/api/auth/register'].post.responses['409'].content['application/json'].examples['UserAlreadyExists']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.responses['409'].content['application/json'].examples['CancellationFailed']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['400'].content['application/json'].examples['InvalidDeposit']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['400'].content['application/json'].examples['InvalidHashFormat']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['400'].content['application/json'].examples['RevealMismatch']").exists())
+    }
+
+    @Test
     fun `v3 api-docs endpoint formats Kotlin Uuid and Instant as proper OpenAPI scalar formats`() {
         mockMvc.perform(
             get("/v3/api-docs")
