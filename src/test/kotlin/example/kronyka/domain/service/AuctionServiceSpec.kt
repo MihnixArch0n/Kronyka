@@ -15,6 +15,45 @@ import kotlin.uuid.Uuid
 @OptIn(ExperimentalUuidApi::class)
 class AuctionServiceSpec : BehaviorSpec({
 
+    Given("AuctionService getAuctions") {
+        val repository = FakeAuctionRepository()
+        val service = AuctionService(repository, VickreyAuctionService(repository, FakeVickreyBidRepository()))
+        val now = Clock.System.now()
+        val auctions = (0..2).map { index ->
+            VickreyAuction(
+                id = Uuid.generateV7(), sellerId = Uuid.generateV7(), title = "Auction $index",
+                status = if (index == 0) AuctionStatus.CANCELLED else AuctionStatus.COMMIT,
+                startTime = now, endTime = now + 3.hours, version = 0L,
+                createdAt = now + index.hours, reservePrice = 0L,
+                commitEndTime = now + 1.hours, revealEndTime = now + 3.hours
+            ).also(repository::save)
+        }
+
+        Then("defaults return all auctions newest first") {
+            service.getAuctions().items shouldBe auctions.reversed()
+            service.getAuctions().total shouldBe 3L
+        }
+        Then("combined filters preserve the filtered total across pages") {
+            val result = service.getAuctions(AuctionType.VICKREY, AuctionStatus.COMMIT, page = 1, size = 1)
+            result.items shouldBe listOf(auctions[1])
+            result.total shouldBe 2L
+        }
+        Then("type and status can be filtered independently") {
+            service.getAuctions(type = AuctionType.DUTCH).total shouldBe 0L
+            service.getAuctions(status = AuctionStatus.CANCELLED).items shouldBe listOf(auctions[0])
+        }
+        Then("pages beyond the results are empty without losing the total or overflowing") {
+            service.getAuctions(page = Int.MAX_VALUE, size = 100).items shouldBe emptyList()
+            service.getAuctions(page = Int.MAX_VALUE, size = 100).total shouldBe 3L
+        }
+        Then("invalid pagination is rejected") {
+            shouldThrow<IllegalArgumentException> { service.getAuctions(page = -1) }
+            listOf(-1, 0, 101).forEach { size ->
+                shouldThrow<IllegalArgumentException> { service.getAuctions(size = size) }
+            }
+        }
+    }
+
     Given("AuctionService getAuction") {
         val auctionRepo = FakeAuctionRepository()
         val bidRepo = FakeVickreyBidRepository()

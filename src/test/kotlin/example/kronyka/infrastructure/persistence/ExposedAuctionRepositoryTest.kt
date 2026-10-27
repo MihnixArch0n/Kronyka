@@ -33,6 +33,39 @@ class ExposedAuctionRepositoryTest {
     private lateinit var userRepository: ExposedUserRepository
 
     @Test
+    fun `listing filters before pagination and counts every matching auction`() {
+        val sellerId = insertTestUser()
+        val now = Clock.System.now()
+        val auctions = (0..2).map { index ->
+            createVickreyAuction(
+                sellerId = sellerId,
+                status = if (index == 0) AuctionStatus.CANCELLED else AuctionStatus.COMMIT
+            ).copy(createdAt = now + index.hours).also(auctionRepository::save)
+        }
+
+        val page = auctionRepository.findAll(AuctionType.VICKREY, AuctionStatus.COMMIT, 1L, 1)
+        page.total shouldBe 2L
+        page.items.map { it.id } shouldBe listOf(auctions[1].id)
+        auctionRepository.findAll(null, null, 0L, 20).items.map { it.id } shouldBe auctions.reversed().map { it.id }
+        auctionRepository.findAll(null, AuctionStatus.CANCELLED, 0L, 20).total shouldBe 1L
+        auctionRepository.findAll(AuctionType.DUTCH, null, 0L, 20).total shouldBe 0L
+        val beyond = auctionRepository.findAll(null, null, Long.MAX_VALUE, 1)
+        beyond.items shouldBe emptyList()
+        beyond.total shouldBe 3L
+    }
+
+    @Test
+    fun `listing uses descending ID to break timestamp ties`() {
+        val sellerId = insertTestUser()
+        val now = Clock.System.now()
+        val auctions = List(3) { createVickreyAuction(sellerId = sellerId).copy(createdAt = now) }
+        auctions.forEach(auctionRepository::save)
+        val expected = auctions.sortedByDescending { it.id }.map { it.id }
+
+        (0L..2L).map { offset -> auctionRepository.findAll(null, null, offset, 1).items.single().id } shouldBe expected
+    }
+
+    @Test
     fun `registered user can be an auction seller`() = runBlocking {
         val user = userRepository.create(Uuid.generateV7().toString(), "test-hash", "Seller")
         val persistedUser = userRepository.findById(user.id).shouldNotBeNull()
