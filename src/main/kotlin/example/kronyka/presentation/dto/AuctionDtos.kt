@@ -60,6 +60,7 @@ fun Auction.toDetailResponse(totalCommitments: Long? = null) = AuctionDetailResp
     reservePrice = (this as? VickreyAuction)?.reservePrice,
     commitEndTime = (this as? VickreyAuction)?.commitEndTime,
     revealEndTime = (this as? VickreyAuction)?.revealEndTime,
+    secondBidderId = (this as? VickreyAuction)?.secondBidderId,
     totalCommitments = totalCommitments
 )
 
