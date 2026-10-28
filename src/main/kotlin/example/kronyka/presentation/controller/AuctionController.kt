@@ -4,6 +4,7 @@ import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.model.VickreyAuction
 import example.kronyka.domain.service.AuctionService
+import example.kronyka.domain.service.DutchAuctionService
 import example.kronyka.domain.service.VickreyAuctionService
 import example.kronyka.presentation.dto.*
 import org.springframework.transaction.annotation.Transactional
@@ -13,7 +14,8 @@ import kotlin.uuid.Uuid
 @RestController
 class AuctionController(
     private val auctionService: AuctionService,
-    private val vickreyAuctionService: VickreyAuctionService
+    private val vickreyAuctionService: VickreyAuctionService,
+    private val dutchAuctionService: DutchAuctionService
 ) : AuctionApi {
 
     override fun getAuctions(
@@ -93,5 +95,58 @@ class AuctionController(
         )
 
         return ApiResponse.success(bid.toRevealResponse())
+    }
+
+    @Transactional
+    override fun createDutchAuction(
+        sellerId: Uuid,
+        request: CreateDutchAuctionRequest
+    ): ApiResponse<CreateAuctionResponse> {
+        val auction = dutchAuctionService.createDutchAuction(
+            sellerId = sellerId,
+            title = request.title!!,
+            startPrice = request.startPrice!!,
+            floorPrice = request.floorPrice!!,
+            stepDecrement = request.stepDecrement!!,
+            stepIntervalSeconds = request.stepIntervalSeconds!!,
+            startTime = request.startTime!!,
+            endTime = request.endTime!!
+        )
+
+        return ApiResponse.success(
+            CreateAuctionResponse(
+                auctionId = auction.id,
+                title = auction.title,
+                type = auction.type,
+                sellerId = auction.sellerId,
+                startTime = auction.startTime,
+                endTime = auction.endTime,
+                status = auction.status.name
+            )
+        )
+    }
+
+    override fun getDutchPrice(id: Uuid): ApiResponse<DutchPriceResponse> {
+        val price = dutchAuctionService.getCurrentPrice(id)
+
+        return ApiResponse.success(
+            DutchPriceResponse(
+                auctionId = id,
+                currentPrice = price
+            )
+        )
+    }
+
+    @Transactional
+    override fun buyDutchAuction(
+        id: Uuid,
+        buyerId: Uuid
+    ): ApiResponse<DutchBuyResponse> {
+        val auction = dutchAuctionService.buyNow(
+            auctionId = id,
+            buyerId = buyerId
+        )
+
+        return ApiResponse.success(auction.toDutchBuyResponse())
     }
 }

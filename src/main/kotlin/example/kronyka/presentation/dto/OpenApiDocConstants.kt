@@ -126,4 +126,15 @@ object OpenApiDocConstants {
   "code": 2005,
   "message": "Bid not found for this auction"
 }"""
+
+    // --- Dutch Auction Errors ---
+    const val DUTCH_400_VALIDATION_ERROR = """{
+  "code": 1005,
+  "message": "title: must not be blank; start_price: must be greater than 0"
+}"""
+
+    const val DUTCH_409_PURCHASE_CONFLICT = """{
+  "code": 2012,
+  "message": "Dutch auction has already been purchased or modified"
+}"""
 }

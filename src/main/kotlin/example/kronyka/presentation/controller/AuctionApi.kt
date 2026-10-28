@@ -467,4 +467,213 @@ interface AuctionApi {
         @AuthenticationPrincipal bidderId: Uuid,
         @Valid @RequestBody request: RevealBidRequest
     ): ApiResponse<RevealBidResponse>
+
+    @Operation(
+        summary = "Create a new Dutch auction",
+        description = "Creates a descending-price Dutch auction with start price, floor price, decrement steps, and intervals",
+        security = [SecurityRequirement(name = "BearerAuth")]
+    )
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(
+                responseCode = "201",
+                description = "Dutch auction created successfully",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = CreateAuctionResponse::class))]
+            ),
+            SwaggerApiResponse(
+                responseCode = "400",
+                description = "Validation failed, invalid timeline, or invalid price configuration",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "ValidationFailed",
+                                summary = "Missing required fields, blank title, or negative prices",
+                                value = OpenApiDocConstants.DUTCH_400_VALIDATION_ERROR
+                            ),
+                            ExampleObject(
+                                name = "InvalidTimeline",
+                                summary = "Start time is not before end time",
+                                value = OpenApiDocConstants.AUCTION_400_INVALID_TIME
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "401",
+                description = "Missing, invalid, or expired Bearer JWT authentication token",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "Unauthenticated",
+                                summary = "Missing or malformed Authorization header",
+                                value = OpenApiDocConstants.AUCTION_401_UNAUTHENTICATED
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+    @PostMapping("/auctions/dutch")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createDutchAuction(
+        @AuthenticationPrincipal sellerId: Uuid,
+        @Valid @RequestBody request: CreateDutchAuctionRequest
+    ): ApiResponse<CreateAuctionResponse>
+
+    @Operation(
+        summary = "Get current Dutch auction price",
+        description = "Calculates and returns the current effective price of a Dutch auction based on elapsed time steps"
+    )
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(
+                responseCode = "200",
+                description = "Successfully retrieved current Dutch auction price",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = DutchPriceResponse::class))]
+            ),
+            SwaggerApiResponse(
+                responseCode = "400",
+                description = "Malformed UUID parameter",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "InvalidUuidFormat",
+                                summary = "Auction ID is not a valid UUID string",
+                                value = OpenApiDocConstants.AUCTION_400_TYPE_MISMATCH
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "404",
+                description = "Auction not found",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "AuctionNotFound",
+                                summary = "No auction matches the provided ID",
+                                value = OpenApiDocConstants.AUCTION_404_NOT_FOUND
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+    @GetMapping("/auctions/{id}/price")
+    @ResponseStatus(HttpStatus.OK)
+    fun getDutchPrice(
+        @Parameter(description = "Auction unique identifier", example = "0192e2b3-7a20-72c0-8a43-02f5e3ef5499")
+        @PathVariable id: Uuid
+    ): ApiResponse<DutchPriceResponse>
+
+    @Operation(
+        summary = "Buy a Dutch auction at the current price",
+        description = "Executes an immediate purchase of an active Dutch auction at its calculated current price, locking the sale via optimistic versioning",
+        security = [SecurityRequirement(name = "BearerAuth")]
+    )
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(
+                responseCode = "200",
+                description = "Dutch auction purchased successfully",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = DutchBuyResponse::class))]
+            ),
+            SwaggerApiResponse(
+                responseCode = "400",
+                description = "Invalid request or auction state (e.g. self-purchase, not active, or outside active window)",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "InvalidAuctionState",
+                                summary = "Auction is not active or window is closed",
+                                value = OpenApiDocConstants.COMMIT_400_INVALID_STATE
+                            ),
+                            ExampleObject(
+                                name = "InvalidUuidFormat",
+                                summary = "Auction ID is not a valid UUID string",
+                                value = OpenApiDocConstants.AUCTION_400_TYPE_MISMATCH
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "401",
+                description = "Missing, invalid, or expired Bearer JWT authentication token",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "Unauthenticated",
+                                summary = "Missing or malformed Authorization header",
+                                value = OpenApiDocConstants.AUCTION_401_UNAUTHENTICATED
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "404",
+                description = "Auction not found",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "AuctionNotFound",
+                                summary = "No auction matches the provided ID",
+                                value = OpenApiDocConstants.AUCTION_404_NOT_FOUND
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "409",
+                description = "Dutch auction purchase conflict (already purchased by another buyer or version changed)",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "DutchPurchaseConflict",
+                                summary = "Race lost or auction already sold",
+                                value = OpenApiDocConstants.DUTCH_409_PURCHASE_CONFLICT
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+    @PostMapping("/auctions/{id}/buy-dutch")
+    @ResponseStatus(HttpStatus.OK)
+    fun buyDutchAuction(
+        @Parameter(description = "Auction unique identifier", example = "0192e2b3-7a20-72c0-8a43-02f5e3ef5499")
+        @PathVariable id: Uuid,
+        @AuthenticationPrincipal buyerId: Uuid
+    ): ApiResponse<DutchBuyResponse>
 }

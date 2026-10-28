@@ -25,7 +25,22 @@ enum class ErrorCode(
     INVALID_AUCTION_TYPE(2007, "Invalid auction type for this operation", HttpStatus.BAD_REQUEST),
     INVALID_DEPOSIT(2008, "Lockup deposit must be greater than or equal to reserve price", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED_ACTION(2009, "You are not authorized to perform this action on the auction", HttpStatus.FORBIDDEN),
-    INVALID_RESERVE_PRICE(2010, "Reserve price must be non-negative", HttpStatus.BAD_REQUEST),
-    INVALID_AUCTION_TIME(2011, "Invalid auction timeline configuration", HttpStatus.BAD_REQUEST)
+    INVALID_RESERVE_PRICE(
+        2010,
+        "Reserve price must be non-negative",
+        HttpStatus.BAD_REQUEST
+    ),
+
+    INVALID_AUCTION_TIME(
+        2011,
+        "Invalid auction timeline configuration",
+        HttpStatus.BAD_REQUEST
+    ),
+
+    DUTCH_PURCHASE_CONFLICT(
+        2012,
+        "Dutch auction has already been purchased or modified",
+        HttpStatus.CONFLICT
+    )
 }
 

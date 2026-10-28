@@ -3,6 +3,7 @@ package example.kronyka.presentation.dto
 import example.kronyka.domain.model.Auction
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
+import example.kronyka.domain.model.DutchAuction
 import example.kronyka.domain.model.VickreyAuction
 import example.kronyka.domain.model.VickreyBid
 import io.swagger.v3.oas.annotations.media.Schema
@@ -62,7 +63,11 @@ fun Auction.toDetailResponse(totalCommitments: Long? = null) = AuctionDetailResp
     commitEndTime = (this as? VickreyAuction)?.commitEndTime,
     revealEndTime = (this as? VickreyAuction)?.revealEndTime,
     secondBidderId = (this as? VickreyAuction)?.secondBidderId,
-    totalCommitments = totalCommitments
+    totalCommitments = totalCommitments,
+    startPrice = (this as? DutchAuction)?.startPrice,
+    floorPrice = (this as? DutchAuction)?.floorPrice,
+    stepDecrement = (this as? DutchAuction)?.stepDecrement,
+    stepIntervalSeconds = (this as? DutchAuction)?.stepIntervalSeconds
 )
 
 fun VickreyBid.toCommitResponse() = CommitBidResponse(
@@ -170,8 +175,8 @@ data class CommitBidRequest(
     )
     @field:NotBlank
     @field:Pattern(
-        regexp = "^[a-fA-F0-9]{64}$",
-        message = "Blind hash must be a 64-character hexadecimal SHA-256 string"
+        regexp = "^[A-Fa-f0-9]{64}$",
+        message = "blind_hash must be a valid 64-character lowercase or uppercase hex string"
     )
     @SerialName("blind_hash") val blindHash: String? = null,
 
@@ -290,5 +295,97 @@ data class AuctionDetailResponse(
     @SerialName("second_bidder_id") val secondBidderId: Uuid? = null,
 
     @field:Schema(description = "Count of total blind commitments submitted (only visible during COMMIT/REVEAL)", example = "14")
-    @SerialName("total_commitments") val totalCommitments: Long? = null
+    @SerialName("total_commitments") val totalCommitments: Long? = null,
+
+    @field:Schema(description = "Starting price in VNĐ (Dutch)", example = "10000000")
+    @SerialName("start_price") val startPrice: Long? = null,
+
+    @field:Schema(description = "Floor reserve price in VNĐ (Dutch)", example = "5000000")
+    @SerialName("floor_price") val floorPrice: Long? = null,
+
+    @field:Schema(description = "Price decrement amount in VNĐ per interval (Dutch)", example = "500000")
+    @SerialName("step_decrement") val stepDecrement: Long? = null,
+
+    @field:Schema(description = "Interval in seconds between price drops (Dutch)", example = "60")
+    @SerialName("step_interval_seconds") val stepIntervalSeconds: Long? = null
+)
+
+@Schema(description = "Payload to initiate a new descending-price Dutch auction")
+@Serializable
+data class CreateDutchAuctionRequest(
+    @field:Schema(description = "Dutch auction title", example = "Vintage Mechanical Keyboard")
+    @field:NotBlank
+    val title: String? = null,
+
+    @field:Schema(description = "Starting price in VNĐ", example = "10000000", minimum = "1")
+    @field:NotNull
+    @field:Positive
+    @SerialName("start_price")
+    val startPrice: Long? = null,
+
+    @field:Schema(description = "Floor minimum reserve price in VNĐ", example = "5000000", minimum = "0")
+    @field:NotNull
+    @field:PositiveOrZero
+    @SerialName("floor_price")
+    val floorPrice: Long? = null,
+
+    @field:Schema(description = "Amount deducted per step interval in VNĐ", example = "500000", minimum = "1")
+    @field:NotNull
+    @field:Positive
+    @SerialName("step_decrement")
+    val stepDecrement: Long? = null,
+
+    @field:Schema(description = "Interval in seconds between price reductions", example = "60", minimum = "1")
+    @field:NotNull
+    @field:Positive
+    @SerialName("step_interval_seconds")
+    val stepIntervalSeconds: Long? = null,
+
+    @field:Schema(description = "Auction scheduled start time (ISO-8601)", example = "2026-10-01T08:00:00Z")
+    @field:NotNull
+    @SerialName("start_time")
+    val startTime: Instant? = null,
+
+    @field:Schema(description = "Auction concluding deadline (ISO-8601)", example = "2026-10-01T10:00:00Z")
+    @field:NotNull
+    @SerialName("end_time")
+    val endTime: Instant? = null
+)
+
+@Schema(description = "Real-time calculated price for a Dutch auction")
+@Serializable
+data class DutchPriceResponse(
+    @field:Schema(description = "Unique auction identifier", example = "0192e2b3-7a20-72c0-8a43-02f5e3ef5499")
+    @SerialName("auction_id")
+    val auctionId: Uuid,
+
+    @field:Schema(description = "Current effective price in VNĐ", example = "8500000")
+    @SerialName("current_price")
+    val currentPrice: Long
+)
+
+@Schema(description = "Instant buy purchase confirmation for a Dutch auction")
+@Serializable
+data class DutchBuyResponse(
+    @field:Schema(description = "Purchased auction identifier", example = "0192e2b3-7a20-72c0-8a43-02f5e3ef5499")
+    @SerialName("auction_id")
+    val auctionId: Uuid,
+
+    @field:Schema(description = "Buyer user identifier", example = "0192e2b3-7a20-72c0-8a43-02f5e3ef5499")
+    @SerialName("winner_id")
+    val winnerId: Uuid,
+
+    @field:Schema(description = "Final purchase price in VNĐ", example = "8500000")
+    @SerialName("final_price")
+    val finalPrice: Long,
+
+    @field:Schema(description = "Resulting auction status", example = "SOLD")
+    val status: String
+)
+
+fun DutchAuction.toDutchBuyResponse() = DutchBuyResponse(
+    auctionId = id,
+    winnerId = requireNotNull(winnerId),
+    finalPrice = requireNotNull(finalPrice),
+    status = status.name
 )

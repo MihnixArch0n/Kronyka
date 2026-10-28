@@ -37,7 +37,7 @@ class ScalarOpenApiDocsTest {
     }
 
     @Test
-    fun `v3 api-docs endpoint documents all 9 implemented endpoints with paths and methods`() {
+    fun `v3 api-docs endpoint documents all 12 implemented endpoints with paths and methods`() {
         mockMvc.perform(
             get("/v3/api-docs")
                 .accept(MediaType.APPLICATION_JSON)
@@ -47,13 +47,17 @@ class ScalarOpenApiDocsTest {
             .andExpect(jsonPath("$.paths['/api/auth/register'].post").exists())
             .andExpect(jsonPath("$.paths['/api/auth/login'].post").exists())
             .andExpect(jsonPath("$.paths['/api/auth/me'].get").exists())
-            // Auction endpoints
+            // Auction endpoints (Vickrey & Common)
             .andExpect(jsonPath("$.paths['/api/auctions'].get").exists())
             .andExpect(jsonPath("$.paths['/api/auctions'].post").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}'].get").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post").exists())
+            // Auction endpoints (Dutch)
+            .andExpect(jsonPath("$.paths['/api/auctions/dutch'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/price'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post").exists())
     }
 
     @Test
@@ -92,6 +96,16 @@ class ScalarOpenApiDocsTest {
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['400']").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['401']").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['404']").exists())
+
+            // Dutch auction errors
+            .andExpect(jsonPath("$.paths['/api/auctions/dutch'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/dutch'].post.responses['401']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/price'].get.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/price'].get.responses['404']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['400']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['401']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['404']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['409']").exists())
     }
 
     @Test
@@ -107,6 +121,7 @@ class ScalarOpenApiDocsTest {
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['400'].content['application/json'].examples['InvalidDeposit']").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['400'].content['application/json'].examples['InvalidHashFormat']").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['400'].content['application/json'].examples['RevealMismatch']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['409'].content['application/json'].examples['DutchPurchaseConflict']").exists())
     }
 
     @Test
