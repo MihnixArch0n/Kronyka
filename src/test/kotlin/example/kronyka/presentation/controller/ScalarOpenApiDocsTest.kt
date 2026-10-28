@@ -121,7 +121,34 @@ class ScalarOpenApiDocsTest {
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['400'].content['application/json'].examples['InvalidDeposit']").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.responses['400'].content['application/json'].examples['InvalidHashFormat']").exists())
             .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.responses['400'].content['application/json'].examples['RevealMismatch']").exists())
-            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['409'].content['application/json'].examples['DutchPurchaseConflict']").exists())
+            // Dutch auction error examples
+            .andExpect(jsonPath("$.paths['/api/auctions/dutch'].post.responses['400'].content['application/json'].examples['InvalidFloorPrice']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/dutch'].post.responses['400'].content['application/json'].examples['InvalidTimeline']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/price'].get.responses['400'].content['application/json'].examples['NotDutchAuction']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['400'].content['application/json'].examples['SelfPurchase']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['400'].content['application/json'].examples['NotActive']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['400'].content['application/json'].examples['OutsideWindow']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['400'].content['application/json'].examples['NotDutchAuction']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['409'].content['application/json'].examples['VersionConflict']").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.responses['409'].content['application/json'].examples['AlreadySold']").exists())
+    }
+
+    @Test
+    fun `v3 api-docs endpoint labels operation summaries with engine prefixes for Scalar navigation`() {
+        mockMvc.perform(
+            get("/v3/api-docs")
+                .accept(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.paths['/api/auctions'].get.summary").value("[Common] List auctions"))
+            .andExpect(jsonPath("$.paths['/api/auctions'].post.summary").value("[Vickrey Engine] Create a new Vickrey auction"))
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].get.summary").value("[Common] Get auction details"))
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.summary").value("[Common] Cancel an auction"))
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.summary").value("[Vickrey Engine] Commit a blind bid (Phase 1)"))
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.summary").value("[Vickrey Engine] Reveal a bid (Phase 2)"))
+            .andExpect(jsonPath("$.paths['/api/auctions/dutch'].post.summary").value("[Dutch Engine] Create a new Dutch auction"))
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/price'].get.summary").value("[Dutch Engine] Get current Dutch auction price"))
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.summary").value("[Dutch Engine] Buy a Dutch auction at current price"))
     }
 
     @Test
