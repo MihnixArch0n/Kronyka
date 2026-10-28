@@ -6,6 +6,7 @@ import example.kronyka.domain.repository.VickreyBidRepository
 import java.security.MessageDigest
 import kotlin.math.max
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -71,7 +72,7 @@ class VickreyAuctionService(
 
         val now = Clock.System.now()
 
-        if (now > startTime
+        if (now > startTime + 10.seconds
             || startTime >= commitEndTime
             || commitEndTime >= revealEndTime)
             throw InvalidAuctionTimeException()

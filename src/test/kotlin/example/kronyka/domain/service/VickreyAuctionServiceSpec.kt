@@ -12,6 +12,7 @@ import java.security.MessageDigest
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -84,7 +85,22 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
             }
         }
 
-        When("startTime is in the past") {
+        When("startTime is slightly in the past within 10-second tolerance") {
+            Then("it should succeed creating the auction") {
+                val now = Clock.System.now()
+                val auction = service.createVickreyAuction(
+                    sellerId = Uuid.generateV7(),
+                    title = "Vintage Watch",
+                    startTime = now - 5.seconds,
+                    reservePrice = 100_000L,
+                    commitEndTime = now + 2.hours,
+                    revealEndTime = now + 3.hours
+                )
+                auction.shouldNotBeNull()
+            }
+        }
+
+        When("startTime is in the past beyond 10-second tolerance") {
             Then("it should throw InvalidAuctionTimeException") {
                 val now = Clock.System.now()
                 shouldThrow<InvalidAuctionTimeException> {
@@ -1065,9 +1081,9 @@ class VickreyAuctionServiceSpec : BehaviorSpec({
         }
 
         When("current time is after revealEndTime but auction not yet settled") {
-            Then("it should return REVEAL") {
+            Then("it should return EXPIRED") {
                 val timeAfterReveal = baseAuction.revealEndTime + 10.minutes
-                baseAuction.resolveStatus(timeAfterReveal) shouldBe AuctionStatus.REVEAL
+                baseAuction.resolveStatus(timeAfterReveal) shouldBe AuctionStatus.EXPIRED
             }
         }
     }
