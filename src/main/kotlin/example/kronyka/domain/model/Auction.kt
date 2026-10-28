@@ -4,7 +4,7 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 enum class AuctionStatus {
-    COMMIT, REVEAL, ACTIVE, SOLD, SETTLED, CANCELLED
+    COMMIT, REVEAL, ACTIVE, SOLD, SETTLED, CANCELLED, EXPIRED
 }
 
 enum class AuctionType {

@@ -52,7 +52,11 @@ fun Auction.toDetailResponse(totalCommitments: Long? = null) = AuctionDetailResp
     sellerId = sellerId,
     title = title,
     type = type,
-    status = (this as? VickreyAuction)?.resolveStatus() ?: status,
+    status = when (this) {
+        is VickreyAuction -> resolveStatus()
+        is DutchAuction -> resolveStatus()
+        else -> status
+    },
     startTime = startTime,
     endTime = endTime,
     winnerId = winnerId,
