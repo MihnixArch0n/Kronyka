@@ -48,7 +48,7 @@
 
 When implementing or modifying features, consult the detailed specifications:
 - **Architecture & Sequence Diagrams**: [docs/llm/ARCHITECTURE.md](docs/llm/ARCHITECTURE.md)
-- **REST API Endpoints & Payloads**: [docs/llm/API_SPEC.md](docs/llm/API_SPEC.md)
+- **REST API Endpoints & Payloads**: Code-first OpenAPI specs in [AuctionApi.kt](src/main/kotlin/example/kronyka/presentation/controller/AuctionApi.kt) & interactive Scalar UI at `/scalar` (OpenAPI 3 JSON at `/v3/api-docs`)
 - **Database Schema & DDL**: [docs/llm/DATABASE_SCHEMA.md](docs/llm/DATABASE_SCHEMA.md)
 - **Domain Engines & Formulas**: [docs/llm/DOMAIN_ENGINES.md](docs/llm/DOMAIN_ENGINES.md)
 
