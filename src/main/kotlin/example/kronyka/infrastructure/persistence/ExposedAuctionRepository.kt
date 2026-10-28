@@ -1,6 +1,7 @@
 package example.kronyka.infrastructure.persistence
 
 import example.kronyka.domain.model.Auction
+import example.kronyka.domain.model.AuctionPage
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.model.VickreyAuction
@@ -13,6 +14,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.notInList
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
@@ -65,8 +67,22 @@ private fun ResultRow.toDomain(): Auction =
         )
     }
 
-    @Repository
-    class ExposedAuctionRepository : AuctionRepository {
+@Repository
+class ExposedAuctionRepository : AuctionRepository {
+    @Transactional(readOnly = true)
+    override fun findAll(type: AuctionType?, status: AuctionStatus?, offset: Long, limit: Int): AuctionPage {
+        val query = AuctionTable.selectAll()
+        type?.let { selectedType -> query.andWhere { AuctionTable.type eq selectedType } }
+        status?.let { selectedStatus -> query.andWhere { AuctionTable.status eq selectedStatus } }
+
+        val total = query.count()
+        val items = query
+            .orderBy(AuctionTable.createdAt to SortOrder.DESC, AuctionTable.id to SortOrder.DESC)
+            .limit(limit)
+            .offset(offset)
+            .map { it.toDomain() }
+        return AuctionPage(items, total)
+    }
     @Transactional
     override fun findById(id: Uuid): Auction? =
         AuctionTable.selectAll().where {

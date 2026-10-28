@@ -1,12 +1,12 @@
 package example.kronyka.domain.model
 
-import java.time.LocalDateTime
-import java.util.UUID
+import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 data class User(
-    val id: UUID,
+    val id: Uuid,
     val username: String,
     val passwordHash: String,
     val fullName: String,
-    val createdAt: LocalDateTime
+    val createdAt: Instant
 )

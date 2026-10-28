@@ -1,4 +1,3 @@
-
 package example.kronyka.presentation.controller
 
 import com.ninjasquad.springmockk.MockkBean
@@ -9,7 +8,6 @@ import example.kronyka.domain.service.AuctionService
 import example.kronyka.domain.service.DutchAuctionService
 import example.kronyka.domain.service.VickreyAuctionService
 import example.kronyka.infrastructure.config.WebConfig
-import example.kronyka.infrastructure.security.JwtAuthenticationFilter
 import example.kronyka.infrastructure.security.JwtTokenProvider
 import example.kronyka.infrastructure.security.SecurityConfig
 import example.kronyka.presentation.advice.GlobalExceptionHandler
@@ -26,7 +24,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.post
-import java.util.UUID
 import kotlin.time.Duration.Companion.hours
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -40,8 +37,7 @@ import kotlin.uuid.Uuid
 @Import(
     GlobalExceptionHandler::class,
     WebConfig::class,
-    SecurityConfig::class,
-    JwtAuthenticationFilter::class
+    SecurityConfig::class
 )
 class DutchAuctionControllerTest {
 
@@ -61,7 +57,7 @@ class DutchAuctionControllerTest {
     private lateinit var mockMvc: MockMvc
 
     private val userId =
-        UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
+        Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
 
     private val token = "test-valid-jwt"
 
@@ -123,7 +119,7 @@ class DutchAuctionControllerTest {
 
     @Test
     fun `create Dutch auction with valid JWT returns 201`() {
-        val sellerId = Uuid.parse(userId.toString())
+        val sellerId = userId
         val auction = sampleDutchAuction(sellerId = sellerId)
 
         every {
@@ -170,7 +166,7 @@ class DutchAuctionControllerTest {
     @Test
     fun `buy Dutch auction with valid JWT returns 200`() {
         val auctionId = Uuid.generateV7()
-        val buyerId = Uuid.parse(userId.toString())
+        val buyerId = userId
 
         val auction = sampleDutchAuction(
             id = auctionId,
@@ -187,25 +183,25 @@ class DutchAuctionControllerTest {
             )
         } returns auction
 
-        mockMvc.post("/api/auctions/$auctionId/buy") {
+        mockMvc.post("/api/auctions/$auctionId/buy-dutch") {
             header("Authorization", "Bearer $token")
         }.andDo {
             print()
         }.andExpect {
-        status { isOk() }
-        jsonPath("$.code") { value(1000) }
-        jsonPath("$.result['auction_id']") { value(auctionId.toString()) }
-        jsonPath("$.result['winner_id']") { value(buyerId.toString()) }
-        jsonPath("$.result['final_price']") { value(8500000) }
-        jsonPath("$.result.status") { value("SOLD") }
-    }
+            status { isOk() }
+            jsonPath("$.code") { value(1000) }
+            jsonPath("$.result['auction_id']") { value(auctionId.toString()) }
+            jsonPath("$.result['winner_id']") { value(buyerId.toString()) }
+            jsonPath("$.result['final_price']") { value(8500000) }
+            jsonPath("$.result.status") { value("SOLD") }
+        }
     }
 
     @Test
     fun `buy Dutch auction without JWT is rejected`() {
         val auctionId = Uuid.generateV7()
 
-        mockMvc.post("/api/auctions/$auctionId/buy")
+        mockMvc.post("/api/auctions/$auctionId/buy-dutch")
             .andExpect {
                 status { is4xxClientError() }
             }

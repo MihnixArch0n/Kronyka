@@ -13,7 +13,9 @@ import jakarta.validation.Valid
 import kotlinx.coroutines.runBlocking
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import kotlin.uuid.Uuid
 
 @Tag(name = "Authentication", description = "Endpoints for user registration, authentication, and profile lookup")
 @RestController
@@ -81,18 +83,8 @@ class AuthController(
     )
     @GetMapping("/me")
     fun getCurrentUser(
-        @RequestHeader(value = "Authorization", required = false) authHeader: String?
+        @AuthenticationPrincipal userId: Uuid
     ): ResponseEntity<ApiResponse<UserProfileResponse>> = runBlocking {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw AppException(ErrorCode.UNAUTHENTICATED, "Missing or invalid Authorization header")
-        }
-        val token = authHeader.removePrefix("Bearer ").trim()
-        if (!jwtTokenProvider.validateToken(token)) {
-            throw AppException(ErrorCode.UNAUTHENTICATED, "Expired or invalid token")
-        }
-        val userId = jwtTokenProvider.getUserIdFromToken(token)
-            ?: throw AppException(ErrorCode.UNAUTHENTICATED, "Invalid token payload")
-
         val user = userRepository.findById(userId)
             ?: throw AppException(ErrorCode.USER_NOT_FOUND, "User not found")
 

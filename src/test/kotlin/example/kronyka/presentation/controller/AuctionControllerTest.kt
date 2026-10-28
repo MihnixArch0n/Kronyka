@@ -1,17 +1,12 @@
 package example.kronyka.presentation.controller
 
-import org.springframework.security.web.context.SecurityContextHolderFilter
-import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
-import org.springframework.test.web.servlet.request.RequestPostProcessor
-import org.springframework.security.test.context.support.WithMockUser
-import example.kronyka.infrastructure.security.JwtAuthenticationFilter
 import example.kronyka.domain.service.DutchAuctionService
 import com.ninjasquad.springmockk.MockkBean
 import example.kronyka.domain.model.*
 import example.kronyka.domain.service.AuctionService
 import example.kronyka.domain.service.VickreyAuctionService
+import example.kronyka.infrastructure.security.JwtTokenProvider
+import example.kronyka.infrastructure.security.SecurityConfig
 import example.kronyka.infrastructure.config.WebConfig
 import example.kronyka.presentation.advice.GlobalExceptionHandler
 import example.kronyka.presentation.dto.*
@@ -45,9 +40,9 @@ import kotlin.uuid.Uuid
     controllers = [AuctionController::class],
     excludeAutoConfiguration = [ExposedAutoConfiguration::class]
 )
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc(addFilters = true)
 @AutoConfigureRestTestClient
-@Import(GlobalExceptionHandler::class, WebConfig::class)
+@Import(GlobalExceptionHandler::class, WebConfig::class, SecurityConfig::class, JwtTokenProvider::class)
 class AuctionControllerTest {
 
     @MockkBean
@@ -59,14 +54,69 @@ class AuctionControllerTest {
     @MockkBean
     private lateinit var dutchAuctionService: DutchAuctionService
 
-    @MockkBean(relaxed = true)
-    private lateinit var jwtAuthenticationFilter: JwtAuthenticationFilter
-
     @Autowired
     private lateinit var restTestClient: RestTestClient
 
     @Autowired
-    private lateinit var mockMvc: org.springframework.test.web.servlet.MockMvc
+    private lateinit var jwtTokenProvider: JwtTokenProvider
+
+    @Test
+    fun `listing is public and uses default pagination`() {
+        every { auctionService.getAuctions(null, null, 0, 20) } returns AuctionPage(emptyList(), 0L)
+
+        val response = restTestClient.get().uri("/api/auctions").exchange()
+            .expectStatus().isOk
+            .expectBody<ApiResponse<AuctionPageResponse>>().returnResult().responseBody.shouldNotBeNull()
+
+        response.code shouldBe 1000
+        response.result.shouldNotBeNull().total shouldBe 0L
+        response.result.items shouldBe emptyList()
+    }
+
+    @Test
+    fun `listing forwards filters and pagination and maps public DTOs`() {
+        val auction = sampleVickreyAuction(status = AuctionStatus.CANCELLED)
+        every { auctionService.getAuctions(AuctionType.VICKREY, AuctionStatus.CANCELLED, 1, 5) } returns
+            AuctionPage(listOf(auction), 6L)
+
+        val response = restTestClient.get()
+            .uri("/api/auctions?type=VICKREY&status=CANCELLED&page=1&size=5").exchange()
+            .expectStatus().isOk
+            .expectBody<ApiResponse<AuctionPageResponse>>().returnResult().responseBody.shouldNotBeNull()
+
+        val result = response.result.shouldNotBeNull()
+        result.total shouldBe 6L
+        result.items.single().auctionId shouldBe auction.id
+        result.items.single().status shouldBe AuctionStatus.CANCELLED
+        verify { auctionService.getAuctions(AuctionType.VICKREY, AuctionStatus.CANCELLED, 1, 5) }
+    }
+
+    @Test
+    fun `invalid listing parameter types return bad request`() {
+        listOf("type=UNKNOWN", "status=UNKNOWN", "page=abc", "size=2147483648").forEach { query ->
+            restTestClient.get().uri("/api/auctions?$query").exchange().expectStatus().isBadRequest
+        }
+    }
+
+    @Test
+    fun `invalid pagination from service returns bad request`() {
+        every { auctionService.getAuctions(null, null, -1, 20) } throws IllegalArgumentException("Page must be zero or greater")
+        every { auctionService.getAuctions(null, null, 0, 101) } throws IllegalArgumentException("Size must be between 1 and 100")
+        listOf("page=-1", "size=101").forEach { query ->
+            restTestClient.get().uri("/api/auctions?$query").exchange().expectStatus().isBadRequest
+        }
+    }
+
+    private fun authorizationHeader(id: Uuid): String {
+        val user = User(
+            id = id,
+            username = "test-user",
+            passwordHash = "unused",
+            fullName = "Test User",
+            createdAt = Clock.System.now()
+        )
+        return "Bearer ${jwtTokenProvider.generateToken(user)}"
+    }
 
     private fun sampleVickreyAuction(
         id: Uuid = Uuid.generateV7(),
@@ -160,7 +210,8 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions")
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
+                .header("X-User-Id", Uuid.generateV7().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -194,7 +245,7 @@ class AuctionControllerTest {
         }
 
         @Test
-        fun `fails with 400 Bad Request when X-User-Id header is missing`() {
+        fun `fails with 401 Unauthorized when JWT is missing`() {
             val now = Clock.System.now()
             val request = CreateVickreyAuctionRequest(
                 title = "Antique Watch",
@@ -209,7 +260,7 @@ class AuctionControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
-                .expectStatus().isBadRequest
+                .expectStatus().isUnauthorized
         }
 
         @Test
@@ -226,7 +277,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions")
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -256,7 +307,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions")
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -297,7 +348,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions")
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -339,7 +390,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions")
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -430,7 +481,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.delete()
                 .uri("/api/auctions/{id}", auctionId)
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .exchange()
                 .expectStatus().isOk
                 .expectBody<ApiResponse<CancelAuctionResponse>>()
@@ -449,13 +500,13 @@ class AuctionControllerTest {
         }
 
         @Test
-        fun `fails with 400 Bad Request when X-User-Id header is missing`() {
+        fun `fails with 401 Unauthorized when JWT is missing`() {
             val auctionId = Uuid.generateV7()
 
             restTestClient.delete()
                 .uri("/api/auctions/{id}", auctionId)
                 .exchange()
-                .expectStatus().isBadRequest
+                .expectStatus().isUnauthorized
         }
 
         @Test
@@ -469,7 +520,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.delete()
                 .uri("/api/auctions/{id}", auctionId)
-                .header("X-User-Id", intruderId.toString())
+                .header("Authorization", authorizationHeader(intruderId))
                 .exchange()
                 .expectStatus().isForbidden
                 .expectBody<ApiResponse<Unit>>()
@@ -493,7 +544,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.delete()
                 .uri("/api/auctions/{id}", auctionId)
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.CONFLICT)
                 .expectBody<ApiResponse<Unit>>()
@@ -517,7 +568,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.delete()
                 .uri("/api/auctions/{id}", auctionId)
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .exchange()
                 .expectStatus().isBadRequest
                 .expectBody<ApiResponse<Unit>>()
@@ -567,7 +618,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/commit", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -609,7 +660,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/commit", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -635,7 +686,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/commit", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -661,7 +712,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/commit", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -692,7 +743,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/commit", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -723,7 +774,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/commit", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -777,7 +828,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/reveal", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -818,7 +869,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/reveal", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -844,7 +895,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/reveal", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -875,7 +926,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/reveal", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -907,7 +958,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/{id}/reveal", auctionId)
-                .header("X-User-Id", bidderId.toString())
+                .header("Authorization", authorizationHeader(bidderId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -956,7 +1007,6 @@ class AuctionControllerTest {
         )
 
         @Test
-        @WithMockUser(username = "550e8400-e29b-41d4-a716-446655440000")
         fun `create Dutch auction returns 201 Created`() {
             val sellerId = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
             val auction = sampleDutchAuction(sellerId = sellerId)
@@ -986,7 +1036,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/dutch")
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -1021,7 +1071,7 @@ class AuctionControllerTest {
 
             val response = restTestClient.post()
                 .uri("/api/auctions/dutch")
-                .header("X-User-Id", sellerId.toString())
+                .header("Authorization", authorizationHeader(sellerId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .exchange()
@@ -1037,7 +1087,6 @@ class AuctionControllerTest {
         }
 
         @Test
-        @WithMockUser(username = "550e8400-e29b-41d4-a716-446655440000")
         fun `buy Dutch auction returns 200 OK`() {
             val auctionId = Uuid.generateV7()
             val buyerId = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
@@ -1058,8 +1107,8 @@ class AuctionControllerTest {
             } returns auction
 
             val response = restTestClient.post()
-                .uri("/api/auctions/{id}/buy", auctionId)
-                .header("X-User-Id", buyerId.toString())
+                .uri("/api/auctions/{id}/buy-dutch", auctionId)
+                .header("Authorization", authorizationHeader(buyerId))
                 .exchange()
                 .expectStatus().isOk
                 .expectBody<ApiResponse<DutchBuyResponse>>()
@@ -1078,7 +1127,6 @@ class AuctionControllerTest {
         }
 
         @Test
-        @WithMockUser(username = "550e8400-e29b-41d4-a716-446655440000")
         fun `buy conflict returns 409 with error code 2012`() {
             val auctionId = Uuid.generateV7()
             val buyerId = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
@@ -1092,8 +1140,8 @@ class AuctionControllerTest {
             } throws DutchPurchaseConflictException()
 
             val response = restTestClient.post()
-                .uri("/api/auctions/{id}/buy", auctionId)
-                .header("X-User-Id", buyerId.toString())
+                .uri("/api/auctions/{id}/buy-dutch", auctionId)
+                .header("Authorization", authorizationHeader(buyerId))
                 .exchange()
                 .expectStatus().isEqualTo(HttpStatus.CONFLICT)
                 .expectBody<ApiResponse<Unit>>()

@@ -4,8 +4,11 @@ package example.kronyka.infrastructure.persistence
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.model.DutchAuction
+import example.kronyka.infrastructure.persistence.tables.AuctionTable
 import example.kronyka.infrastructure.persistence.tables.UserTable
+import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -28,6 +31,14 @@ class DutchAuctionRepositoryIntegrationTest {
     @Autowired
     private lateinit var transactionTemplate: TransactionTemplate
 
+    @AfterEach
+    fun cleanUp() {
+        transactionTemplate.executeWithoutResult {
+            AuctionTable.deleteAll()
+            UserTable.deleteAll()
+        }
+    }
+
     private fun createAuction(): DutchAuction {
         val sellerId = Uuid.random()
         val buyerId = Uuid.random()
@@ -36,9 +47,17 @@ class DutchAuctionRepositoryIntegrationTest {
         transactionTemplate.executeWithoutResult {
             UserTable.insert {
                 it[id] = sellerId
+                it[username] = sellerId.toString()
+                it[passwordHash] = "test-hash"
+                it[fullName] = "Seller User"
+                it[createdAt] = now
             }
             UserTable.insert {
                 it[id] = buyerId
+                it[username] = buyerId.toString()
+                it[passwordHash] = "test-hash"
+                it[fullName] = "Buyer User"
+                it[createdAt] = now
             }
         }
 
@@ -70,6 +89,10 @@ class DutchAuctionRepositoryIntegrationTest {
         transactionTemplate.executeWithoutResult {
             UserTable.insert {
                 it[id] = userId
+                it[username] = userId.toString()
+                it[passwordHash] = "test-hash"
+                it[fullName] = "Test User"
+                it[createdAt] = Clock.System.now()
             }
         }
 

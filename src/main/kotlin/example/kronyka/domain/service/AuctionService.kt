@@ -2,6 +2,7 @@ package example.kronyka.domain.service
 
 import example.kronyka.domain.model.DutchAuction
 import example.kronyka.domain.model.Auction
+import example.kronyka.domain.model.AuctionPage
 import example.kronyka.domain.model.AuctionNotFoundException
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
@@ -15,6 +16,17 @@ class AuctionService(
     private val auctionRepository: AuctionRepository,
     private val vickreyAuctionService: VickreyAuctionService
 ) {
+    fun getAuctions(
+        type: AuctionType? = null,
+        status: AuctionStatus? = null,
+        page: Int = 0,
+        size: Int = 20
+    ): AuctionPage {
+        require(page >= 0) { "Page must be zero or greater" }
+        require(size in 1..100) { "Size must be between 1 and 100" }
+        return auctionRepository.findAll(type, status, page.toLong() * size, size)
+    }
+
     fun getAuction(auctionId: Uuid): Auction =
         auctionRepository.findById(auctionId) ?: throw AuctionNotFoundException()
 

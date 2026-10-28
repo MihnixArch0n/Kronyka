@@ -13,9 +13,10 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.security.crypto.password.PasswordEncoder
-import java.time.LocalDateTime
-import java.util.UUID
+import kotlin.time.Clock
+import kotlin.uuid.Uuid
 
+@OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 class AuthServiceImplTest {
 
     private lateinit var fakeUserRepository: FakeUserRepository
@@ -151,7 +152,7 @@ class AuthServiceImplTest {
     private class FakeUserRepository : UserRepository {
         private val users = mutableListOf<User>()
 
-        override suspend fun findById(id: UUID): User? = users.find { it.id == id }
+        override suspend fun findById(id: Uuid): User? = users.find { it.id == id }
 
         override suspend fun findByUsername(username: String): User? =
             users.find { it.username.equals(username, ignoreCase = true) }
@@ -161,11 +162,11 @@ class AuthServiceImplTest {
 
         override suspend fun create(username: String, passwordHash: String, fullName: String): User {
             val user = User(
-                id = UUID.randomUUID(),
+                id = Uuid.generateV7(),
                 username = username,
                 passwordHash = passwordHash,
                 fullName = fullName,
-                createdAt = LocalDateTime.now()
+                createdAt = Clock.System.now()
             )
             users.add(user)
             return user
@@ -179,6 +180,6 @@ class AuthServiceImplTest {
             } else false
         }
 
-        override suspend fun delete(id: UUID): Boolean = users.removeIf { it.id == id }
+        override suspend fun delete(id: Uuid): Boolean = users.removeIf { it.id == id }
     }
 }

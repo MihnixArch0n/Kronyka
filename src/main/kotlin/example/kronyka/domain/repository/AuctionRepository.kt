@@ -1,12 +1,16 @@
 package example.kronyka.domain.repository
 
 import example.kronyka.domain.model.Auction
+import example.kronyka.domain.model.AuctionPage
+import example.kronyka.domain.model.AuctionStatus
+import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.model.VickreyAuction
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 interface AuctionRepository {
     fun findById(id: Uuid): Auction?
+    fun findAll(type: AuctionType?, status: AuctionStatus?, offset: Long, limit: Int): AuctionPage
     fun save(auction: Auction)
     fun findExpiredUnsettledVickreyAuctions(beforeTime: Instant, limit: Int = 50): List<VickreyAuction>
     fun tryCompleteDutchPurchase(
