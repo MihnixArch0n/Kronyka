@@ -55,7 +55,7 @@ erDiagram
 | Column | Type | Nullable | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | No | `gen_random_uuid()` | Primary Key |
-| `auction_id` | `UUID` | No | | Foreign Key -> `auctions(id)` (ON DELETE CASCADE) |
+| `auction_id` | `UUID` | No | | Foreign Key -> `auctions(id)` (ON DELETE RESTRICT) |
 | `bidder_id` | `UUID` | No | | Foreign Key -> `users(id)` |
 | `blind_hash` | `VARCHAR(64)` | No | | SHA-256 hash |
 | `lockup_deposit`| `BIGINT` | No | | Visible deposit amount in VNĐ |

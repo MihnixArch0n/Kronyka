@@ -4,107 +4,179 @@
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.1-green.svg?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Exposed](https://img.shields.io/badge/Exposed-1.5.0-purple.svg)](https://github.com/JetBrains/Exposed)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue.svg?logo=postgresql)](https://www.postgresql.org)
-[![Docker](https://img.shields.io/badge/Container-Docker%20%7C%20Podman-blue.svg?logo=docker)](https://www.docker.com)
+[![Java 25](https://img.shields.io/badge/JDK-25%20(Temurin)-orange.svg?logo=openjdk)](https://adoptium.net)
+[![Container](https://img.shields.io/badge/Container-Docker%20%7C%20Podman-blue.svg?logo=docker)](https://www.docker.com)
 
-**Kronyka** is a backend REST service implementing a **Dual-Engine Auction Platform** built with **Kotlin**, **Spring Boot**, and **JetBrains Exposed SQL DSL**, adhering to strict **Clean Architecture** principles.
+**Kronyka** is a high-concurrency, game-theoretic auction service built with **Kotlin 2.4**, **Spring Boot 4.1** (with Java 25 Virtual Threads), and **JetBrains Exposed SQL DSL**, strictly adhering to **Clean Architecture (Hexagonal / Ports & Adapters)**.
 
----
-
-## 1. Problem Statement & Core Engines
-
-Conventional open English auctions suffer from two major flaws: **last-second sniping** and **shill bidding / insider collusion**. Kronyka resolves both using two distinct game-theoretic auction mechanisms:
-
-1. **Engine 1 — Vickrey Sealed-Bid Blind Auction (Nobel Prize in Economics 1996)**:
-   - A 3-phase state machine (`COMMIT` -> `REVEAL` -> `SETTLED`).
-   - Bidders submit a cryptographic SHA-256 blind hash with a blind deposit to prevent front-running and operator collusion.
-   - Winner is the highest bidder, but pays the **second-highest bid price** (Second-Price Rule).
-2. **Engine 2 — Step-Decay Dutch Auction**:
-   - Descending-price auction evaluated via a stateless staircase formula in memory.
-   - Resolves concurrency race conditions on "Buy Now" requests using atomic optimistic locking (`version`), returning HTTP `409 Conflict` to latecomers.
+This repository serves as the **Phase 1 baseline implementation** of an auction backend system, providing a robust functional foundation while leaving observable architectural characteristics and bottlenecks for **Phase 2 Quality Attribute analysis** (performance, concurrency, and scalability improvements).
 
 ---
 
-## 2. Project Architecture & Layering
+## 1. Problem Statement & Core Business Mechanics
 
-Kronyka strictly follows **Clean Architecture (Hexagonal / Ports & Adapters)**:
-- **Presentation Layer (`presentation/`)**: REST controllers, DTO validation (`@Valid`), and global exception mapping.
-- **Domain Layer (`domain/`)**: Pure business logic (entities, use cases, math formulas, repository ports). **Zero dependencies** on Spring Web, Exposed, or JDBC libraries.
-- **Infrastructure Layer (`infrastructure/`)**: Implements repository ports using JetBrains Exposed SQL DSL, manages PostgreSQL connections, and handles centralized JWT authentication.
+### 1.1. Problem Statement
+Conventional open ascending-bid auctions (English auctions) suffer from two fundamental market failures:
+- **Last-second Bid Sniping**: Automated bots place bids in the terminal seconds, denying organic price discovery and degrading fair participation.
+- **Shill Bidding & Collusion**: Unscrupulous sellers or insiders artificially inflate prices using transparent bid visibility.
 
-> 📖 **Detailed Architecture Document**: See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for package layouts, layer boundaries, and Mermaid sequence diagrams.
+Kronyka eliminates these vulnerabilities by implementing two complementary, non-standard auction mechanisms:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           KRONYKA DUAL-ENGINE PLATFORM                          │
+├──────────────────────────────────────┬──────────────────────────────────────────┤
+│ 1. Vickrey Sealed-Bid Engine         │ 2. Step-Decay Dutch Engine               │
+│ - Dominant strategy: Truthful bidding│ - Fast liquidation / dynamic pricing     │
+│ - 3-Phase State Machine              │ - Memory-evaluated staircase formula     │
+│ - Cryptographic SHA-256 Blind Bids   │ - Optimistic Concurrency Control (OCC)   │
+│ - Second-Price Settlement Rule       │ - Immediate 409 Conflict for race losers │
+└──────────────────────────────────────┴──────────────────────────────────────────┘
+```
+
+### 1.2. Business Workflows & Engine Rules
+
+#### Engine 1: Vickrey Sealed-Bid Blind Auction (Nobel Prize in Economics 1996)
+Operates as a strict 3-phase finite state machine:
+1. **Commit Phase (`COMMIT`)**:
+   - Bidders submit a commitment: `blind_hash = SHA-256(actual_bid + "_" + secret_salt)` alongside a `lockup_deposit` where `lockup_deposit >= actual_bid`.
+   - No bid amount is leaked into the database during this phase. Atomic upserts (`UNIQUE(auction_id, bidder_id)`) prevent race conditions.
+2. **Reveal Phase (`REVEAL`)**:
+   - Bidders disclose their `actual_bid` and `secret_salt`.
+   - The engine validates:
+     - `SHA-256(actual_bid + "_" + secret_salt) == blind_hash`
+     - `actual_bid <= lockup_deposit`
+   - Mismatches return HTTP `400 Bad Request` (`REVEAL_MISMATCH`). The bidder may retry until the reveal window expires.
+3. **Settlement Phase (`SETTLED`)**:
+   - Automatically executed by a scheduled background worker (`@Scheduled`).
+   - **Winner**: The bidder with the highest verified bid.
+   - **Payable Price**: The **second-highest bid** (or `reserve_price` if only one valid bid was submitted).
+
+#### Engine 2: Step-Decay Dutch Auction
+- A descending-price mechanism for high-velocity liquidation.
+- **Price Formula**: Evaluated purely in memory from clock time (no cron or mutation required):
+  ```
+  P(t) = max(floor_price, start_price - floor((t - start_time) / step_interval) * step_decrement)
+  ```
+- **Concurrency & Race Condition ("Buy Now")**:
+  - Purchasing (`POST /api/v1/auctions/{id}/buy-dutch`) executes with an **Optimistic Locking check** on `version`.
+  - The first transaction to commit captures the item and transitions status to `SOLD`. Late concurrent requests immediately receive HTTP `409 Conflict`.
+
+#### Centralized Security & Authentication
+- Stateless JWT authentication via `JwtAuthenticationFilter` (HMAC-SHA256).
+- Endpoints require authentication where appropriate (e.g., `POST /api/v1/auctions`, `POST /api/v1/auctions/{id}/commit`, `DELETE /api/v1/auctions/{id}`). Authentication is handled strictly in the filter chain, never duplicated inside controller methods.
 
 ---
 
-## 3. Quick Reference & Documentation Index
+## 2. Project Architecture & Code Organization
 
-All in-depth specifications are maintained under the [`docs/`](docs/) directory:
+Kronyka strictly enforces **Clean Architecture** (Ports & Adapters) boundaries with unidirectional dependencies pointing inward:
 
-- 🏛️ **Architecture & Design**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Clean Architecture layers, sequence flows, and concurrency control.
-- ⚡ **Interactive API Reference & Testing (Scalar)**: Access `http://localhost:8080/scalar` (OpenAPI 3 JSON at `/v3/api-docs`) — Complete interactive contract for all 12 endpoints, request/response models, and status codes.
-- 🗄️ **Database Schema & DDL**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) — Tables (`users`, `auctions`, `vickrey_bids`), data types, constraints, and indexes.
-- 🤖 **AI Agents Context**: [docs/llm/](docs/llm/) — Context documentation and technical invariants for AI coding assistants (referenced in [AGENTS.md](AGENTS.md)).
+```
+src/main/kotlin/example/kronyka/
+├── domain/                         # 1. CORE DOMAIN (Zero framework/library imports)
+│   ├── model/                      #    Entities (Auction, Bid, User), Value Objects, Enums
+│   ├── repository/                 #    Repository Ports (Pure Kotlin interfaces)
+│   └── service/                    #    Domain Engines (VickreyAuctionEngine, DutchAuctionEngine)
+│
+├── presentation/                   # 2. PRESENTATION LAYER (Inbound Adapters)
+│   ├── controller/                 #    REST Controllers (AuctionController, AuthController)
+│   ├── dto/                        #    Request/Response DTOs & Jakarta Validation (@Valid)
+│   └── advice/                     #    Global Exception Handling (@RestControllerAdvice, RFC 7807)
+│
+└── infrastructure/                 # 3. INFRASTRUCTURE LAYER (Outbound Adapters)
+    ├── persistence/                #    JetBrains Exposed SQL DSL Tables & Repository Implementations
+    ├── security/                   #    Centralized Spring Security & JwtAuthenticationFilter
+    ├── scheduler/                  #    Scheduled Background Settlement Worker
+    └── config/                     #    Spring Boot & Database Configuration
+```
+
+### Architectural Invariants:
+- **`domain/` Isolation**: Pure Kotlin only. Does not import Spring (`@Service`, `@Autowired`), JDBC, or Exposed libraries. Tested exclusively with pure Kotest specs.
+- **Exposed SQL DSL Exclusivity**: Uses Exposed `Table` singletons and explicit SQL DSL (`selectAll().where`, `insert`, `upsert`, `update`). Exposed DAO (`EntityClass`, `IntEntity`) is strictly prohibited.
+- **Currency Invariant**: All monetary values (VNĐ) are stored and manipulated as `Long` / `BIGINT`. Floating-point arithmetic (`Double`/`Float`) is forbidden.
 
 ---
 
-## 4. Course Requirements Compliance (Phase 1)
+## 3. Known Limitations & Baseline Constraints
 
-This project strictly adheres to all requirements outlined in the course syllabus:
+Following the Phase 1 specification, Kronyka focuses on a functional, unoptimized baseline service. Key observable characteristics and architectural limitations include:
 
-| Requirement | Implementation in Kronyka |
-| :--- | :--- |
-| **REST API (JSON)** | Standard RESTful API communicating via JSON over HTTP. |
-| **HTTP Methods** | Covers `POST`, `GET`, and `DELETE` across 12 endpoints. |
-| **API Documentation** | OpenAPI 3.0 / Scalar API Reference integrated at `/scalar`. |
-| **Layered Architecture** | Clean Architecture: API -> Domain -> Data Access. Domain has zero framework/DB imports. |
-| **Data Access Layer** | JetBrains Exposed SQL DSL repository adapters connecting to PostgreSQL. |
-| **Centralized Security** | Stateless JWT authentication enforced centrally via `JwtAuthenticationFilter`. |
-| **Protected Endpoints** | Multiple protected `POST`, `GET`, and `DELETE` endpoints requiring Bearer tokens. |
-| **Containerization** | Multi-stage `Containerfile` and `compose.yaml` supporting Docker and Podman. |
-| **Load Testing** | Pre-configured k6 benchmark scripts for baseline measurement on Kaggle CPU. |
+- **Direct Database Reads**: Every listing query (`GET /api/v1/auctions`) and Dutch price computation (`GET /api/v1/auctions/{id}/price`) queries PostgreSQL directly without an in-memory or distributed caching layer.
+- **Client-Side Polling**: Clients must poll the price endpoint repeatedly to track Dutch auction price decay, as real-time push streams are not implemented.
+- **Scheduled Settlement Polling**: Vickrey auction settlement relies on a periodic `@Scheduled` polling task scanning the database every 5,000ms rather than event-driven notifications.
+- **Optimistic Concurrency Contention**: Dutch auction "Buy Now" requests rely on Optimistic Concurrency Control (`version`), causing high contention and HTTP `409 Conflict` bursts under concurrent load.
+- **Monolithic In-Process Topology**: All domain engines, scheduler, and API endpoints execute within a single containerized application process.
+- **Single-Node Settlement Scheduling & Scalability Bottleneck**: The background settlement worker runs as an uncoordinated in-process loop without distributed locking or leader election, preventing horizontal multi-instance scale-out and relying on sequential blocking batch execution.
+- **Absence of Ingress Traffic Shaping & Resilience**: The API lacks rate limiting and circuit breaking mechanisms, leaving the service vulnerable to traffic spikes, request flooding, and cascading failures under database saturation.
 
 ---
 
-## 5. How to Run the Application
+## 4. Technical Requirements & Deployment
 
-You can launch Kronyka using either **Docker / Podman** (all-in-one) or **Gradle** (local development).
+### 4.1. Prerequisites & Environment
+- **JDK**: Eclipse Temurin 25 (Java 25).
+- **Container Engine**: Docker Engine 24+ (with Compose v2) or Podman 4.5+ (with podman-compose).
+- **Database**: PostgreSQL 18 (Alpine image included in `compose.yaml`).
 
-### Option A: All-in-One via Docker or Podman (Recommended)
-Build and run both the PostgreSQL database and Spring Boot application with a single command:
+### 4.2. Environment Configuration
+Default configuration variables are declared in `.env.example` and wired through `compose.yaml` / `application.yaml`:
+
+| Environment Variable | Default Value | Description |
+|---|---|---|
+| `SERVER_PORT` | `8080` | HTTP port exposed by the Spring Boot service |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://postgres:5432/kronyka` | PostgreSQL JDBC connection URL |
+| `SPRING_DATASOURCE_USERNAME` | `kronyka` | PostgreSQL database username |
+| `SPRING_DATASOURCE_PASSWORD` | `kronyka_secret` | PostgreSQL database password |
+| `JWT_SECRET` | *(HMAC-SHA256 32-char string)* | Symmetric key for signing JWT tokens |
+| `JWT_EXPIRATION` | `86400` | JWT token validity duration (seconds) |
+| `KRONYKA_AUCTION_SETTLEMENT_FIXED_DELAY_MS` | `5000` | Background settlement scan interval |
+
+---
+
+## 5. Build, Run & Verification Guide
+
+### 5.1. Option A: Run via Docker / Podman (Recommended for Phase 2)
+The container build utilizes a **Multi-Stage Containerfile** with **Java 25 Ahead-Of-Time (AOT) Cache training** (`-XX:AOTCacheOutput=app.aot`) to drastically reduce JVM cold-start latency and resident memory footprint:
 
 ```bash
-# Using Docker Compose
+# Build and start PostgreSQL + Kronyka App
 docker compose up --build
 
-# Using Podman Compose
+# Or with Podman
 podman compose up --build
 ```
-The application will be live at `http://localhost:8080`.
+- App will be healthy and live at: `http://localhost:8080`
+- Interactive OpenAPI / Scalar UI: `http://localhost:8080/scalar`
+- Health check endpoint: `http://localhost:8080/actuator/health`
 
 To stop the containers:
 ```bash
-docker compose down
-# or
-podman compose down
+docker compose down -v
 ```
 
 ---
 
-### Option B: Local Development via Gradle
+### 5.2. Option B: Local Development via Gradle
+For day-to-day feature development:
 
-#### 1. Start the PostgreSQL Container
 ```bash
+# 1. Start only the PostgreSQL database container
 docker compose up -d postgres
-# or with podman
-podman compose up -d postgres
-```
 
-#### 2. Run the Application
-```bash
+# 2. Run the Spring Boot application (requires JDK 25)
 ./gradlew bootRun
-```
 
-#### 3. Run Automated Tests
-```bash
+# 3. Run Unit and Integration tests (Kotest + JUnit 5)
 ./gradlew test
 ```
 
+---
+
+## 6. Detailed Documentation Index
+
+For in-depth architectural specifications and implementation details, refer to:
+- 🏛️ **System Architecture & Sequence Flows**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Layer boundaries, sequence diagrams, and concurrency control.
+- 🗄️ **Database Schema & DDL**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) — Tables (`users`, `auctions`, `vickrey_bids`), data types, constraints, and indexes.
+- ⚙️ **Domain Engines & Formulas**: [docs/llm/DOMAIN_ENGINES.md](docs/llm/DOMAIN_ENGINES.md) — Mathematical proofs, pricing formulas, and verification steps.
+- ⚡ **Interactive API Contract (Scalar)**: Run the app and browse to `http://localhost:8080/scalar` (or OpenAPI JSON at `/v3/api-docs`).

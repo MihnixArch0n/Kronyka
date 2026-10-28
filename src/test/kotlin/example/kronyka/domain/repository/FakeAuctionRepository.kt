@@ -6,6 +6,7 @@ import example.kronyka.domain.model.AuctionType
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.DutchAuction
 import example.kronyka.domain.model.VickreyAuction
+import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -15,8 +16,16 @@ class FakeAuctionRepository : AuctionRepository {
     override fun findById(id: Uuid): Auction? = auctions[id]
 
     override fun findAll(type: AuctionType?, status: AuctionStatus?, offset: Long, limit: Int): AuctionPage {
+        val now = Clock.System.now()
         val filtered = auctions.values
-            .filter { (type == null || it.type == type) && (status == null || it.status == status) }
+            .filter { auction ->
+                (type == null || auction.type == type) &&
+                (status == null || when (auction) {
+                    is VickreyAuction -> auction.resolveStatus(now) == status
+                    is DutchAuction -> auction.resolveStatus(now) == status
+                    else -> auction.status == status
+                })
+            }
             .sortedWith(compareByDescending<Auction> { it.createdAt }.thenByDescending { it.id })
         val items = if (offset >= filtered.size.toLong()) emptyList()
             else filtered.drop(offset.toInt()).take(limit)

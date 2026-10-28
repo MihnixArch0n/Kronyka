@@ -13,11 +13,13 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.notInList
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
+import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 import example.kronyka.domain.model.DutchAuction
@@ -73,7 +75,39 @@ class ExposedAuctionRepository : AuctionRepository {
     override fun findAll(type: AuctionType?, status: AuctionStatus?, offset: Long, limit: Int): AuctionPage {
         val query = AuctionTable.selectAll()
         type?.let { selectedType -> query.andWhere { AuctionTable.type eq selectedType } }
-        status?.let { selectedStatus -> query.andWhere { AuctionTable.status eq selectedStatus } }
+
+        status?.let { selectedStatus ->
+            val now = Clock.System.now()
+            when (selectedStatus) {
+                AuctionStatus.COMMIT -> query.andWhere {
+                    (AuctionTable.type eq AuctionType.VICKREY) and
+                            (AuctionTable.status eq AuctionStatus.COMMIT) and
+                            (AuctionTable.commitEndTime greater now)
+                }
+                AuctionStatus.REVEAL -> query.andWhere {
+                    (AuctionTable.type eq AuctionType.VICKREY) and
+                            (AuctionTable.status eq AuctionStatus.COMMIT) and
+                            (AuctionTable.commitEndTime lessEq now) and
+                            (AuctionTable.revealEndTime greater now)
+                }
+                AuctionStatus.ACTIVE -> query.andWhere {
+                    (AuctionTable.type eq AuctionType.DUTCH) and
+                            (AuctionTable.status eq AuctionStatus.ACTIVE) and
+                            (AuctionTable.endTime greater now)
+                }
+                AuctionStatus.EXPIRED -> query.andWhere {
+                    ((AuctionTable.type eq AuctionType.DUTCH) and
+                            (AuctionTable.status eq AuctionStatus.ACTIVE) and
+                            (AuctionTable.endTime lessEq now)) or
+                            ((AuctionTable.type eq AuctionType.VICKREY) and
+                                    (AuctionTable.status eq AuctionStatus.COMMIT) and
+                                    (AuctionTable.revealEndTime lessEq now))
+                }
+                AuctionStatus.SOLD, AuctionStatus.SETTLED, AuctionStatus.CANCELLED -> {
+                    query.andWhere { AuctionTable.status eq selectedStatus }
+                }
+            }
+        }
 
         val total = query.count()
         val items = query

@@ -53,5 +53,3 @@ scalar:
   path: /scalar
   page-title: "Kronyka Auction API Reference"
   theme: deepSpace
-  authentication:
-    preferred-security-scheme: BearerAuth

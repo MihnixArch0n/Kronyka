@@ -1,6 +1,7 @@
 
 package example.kronyka.domain.model
 
+import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -56,5 +57,12 @@ data class DutchAuction(
                 "Auction already has a winner"
             )
         }
+    }
+
+    fun resolveStatus(now: Instant = Clock.System.now()): AuctionStatus = when {
+        status == AuctionStatus.CANCELLED -> AuctionStatus.CANCELLED
+        status == AuctionStatus.SOLD -> AuctionStatus.SOLD
+        now >= endTime -> AuctionStatus.EXPIRED
+        else -> AuctionStatus.ACTIVE
     }
 }

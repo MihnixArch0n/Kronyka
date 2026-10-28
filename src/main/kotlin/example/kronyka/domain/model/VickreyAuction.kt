@@ -52,6 +52,7 @@ data class VickreyAuction(
         status == AuctionStatus.CANCELLED -> AuctionStatus.CANCELLED
         status == AuctionStatus.SETTLED -> AuctionStatus.SETTLED
         now < commitEndTime -> AuctionStatus.COMMIT
-        else -> AuctionStatus.REVEAL
+        now < revealEndTime -> AuctionStatus.REVEAL
+        else -> AuctionStatus.EXPIRED
     }
 }
