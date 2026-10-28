@@ -1,5 +1,9 @@
 package example.kronyka.presentation.dto
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies
+import com.fasterxml.jackson.databind.annotation.JsonNaming
+import com.fasterxml.jackson.annotation.JsonProperty
+import example.kronyka.domain.model.DutchAuction
 import example.kronyka.domain.model.Auction
 import example.kronyka.domain.model.AuctionStatus
 import example.kronyka.domain.model.AuctionType
@@ -60,7 +64,11 @@ fun Auction.toDetailResponse(totalCommitments: Long? = null) = AuctionDetailResp
     reservePrice = (this as? VickreyAuction)?.reservePrice,
     commitEndTime = (this as? VickreyAuction)?.commitEndTime,
     revealEndTime = (this as? VickreyAuction)?.revealEndTime,
-    totalCommitments = totalCommitments
+    totalCommitments = totalCommitments,
+    startPrice = (this as? DutchAuction)?.startPrice,
+    floorPrice = (this as? DutchAuction)?.floorPrice,
+    stepDecrement = (this as? DutchAuction)?.stepDecrement,
+    stepIntervalSeconds = (this as? DutchAuction)?.stepIntervalSeconds
 )
 
 fun VickreyBid.toCommitResponse() = CommitBidResponse(
@@ -156,24 +164,154 @@ data class RevealBidResponse(
     val message: String? = null
 )
 
+
 @Serializable
 data class AuctionDetailResponse(
-    @SerialName("auction_id") val auctionId: Uuid?,
-    @SerialName("seller_id") val sellerId: Uuid,
+    @SerialName("auction_id")
+    @param:JsonProperty("auction_id")
+    val auctionId: Uuid?,
+
+    @SerialName("seller_id")
+    @param:JsonProperty("seller_id")
+    val sellerId: Uuid,
+
     val title: String,
+
     @Serializable(with = AuctionTypeSerializer::class)
     val type: AuctionType,
+
     @Serializable(with = AuctionStatusSerializer::class)
     val status: AuctionStatus,
-    @SerialName("start_time") val startTime: Instant,
-    @SerialName("end_time") val endTime: Instant,
-    @SerialName("winner_id") val winnerId: Uuid?,
-    @SerialName("final_price") val finalPrice: Long?,
+
+    @SerialName("start_time")
+    @param:JsonProperty("start_time")
+    val startTime: Instant,
+
+    @SerialName("end_time")
+    @param:JsonProperty("end_time")
+    val endTime: Instant,
+
+    @SerialName("winner_id")
+    @param:JsonProperty("winner_id")
+    val winnerId: Uuid?,
+
+    @SerialName("final_price")
+    @param:JsonProperty("final_price")
+    val finalPrice: Long?,
+
     val version: Long,
-    @SerialName("created_at") val createdAt: Instant,
-    @SerialName("reserve_price") val reservePrice: Long? = null,
-    @SerialName("commit_end_time") val commitEndTime: Instant? = null,
-    @SerialName("reveal_end_time") val revealEndTime: Instant? = null,
-    @SerialName("second_bidder_id") val secondBidderId: Uuid? = null,
-    @SerialName("total_commitments") val totalCommitments: Long? = null
+
+    @SerialName("created_at")
+    @param:JsonProperty("created_at")
+    val createdAt: Instant,
+
+    @SerialName("reserve_price")
+    @param:JsonProperty("reserve_price")
+    val reservePrice: Long? = null,
+
+    @SerialName("commit_end_time")
+    @param:JsonProperty("commit_end_time")
+    val commitEndTime: Instant? = null,
+
+    @SerialName("reveal_end_time")
+    @param:JsonProperty("reveal_end_time")
+    val revealEndTime: Instant? = null,
+
+    @SerialName("second_bidder_id")
+    @param:JsonProperty("second_bidder_id")
+    val secondBidderId: Uuid? = null,
+
+    @SerialName("total_commitments")
+    @param:JsonProperty("total_commitments")
+    val totalCommitments: Long? = null,
+
+    @SerialName("start_price")
+    @param:JsonProperty("start_price")
+    val startPrice: Long? = null,
+
+    @SerialName("floor_price")
+    @param:JsonProperty("floor_price")
+    val floorPrice: Long? = null,
+
+    @SerialName("step_decrement")
+    @param:JsonProperty("step_decrement")
+    val stepDecrement: Long? = null,
+
+    @SerialName("step_interval_seconds")
+    @param:JsonProperty("step_interval_seconds")
+    val stepIntervalSeconds: Long? = null
 )
+
+
+
+@Serializable
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class CreateDutchAuctionRequest(
+    @field:NotBlank
+    val title: String? = null,
+
+    @field:NotNull
+    @field:Positive
+    @SerialName("start_price")
+    val startPrice: Long? = null,
+
+    @field:NotNull
+    @field:PositiveOrZero
+    @SerialName("floor_price")
+    val floorPrice: Long? = null,
+
+    @field:NotNull
+    @field:Positive
+    @SerialName("step_decrement")
+    val stepDecrement: Long? = null,
+
+    @field:NotNull
+    @field:Positive
+    @SerialName("step_interval_seconds")
+    val stepIntervalSeconds: Long? = null,
+
+    @field:NotNull
+    @SerialName("start_time")
+    val startTime: Instant? = null,
+
+    @field:NotNull
+    @SerialName("end_time")
+    val endTime: Instant? = null
+)
+
+
+
+@Serializable
+data class DutchPriceResponse(
+    @SerialName("auction_id")
+    val auctionId: Uuid,
+
+    @SerialName("current_price")
+    val currentPrice: Long
+)
+
+@Serializable
+data class DutchBuyResponse(
+    @SerialName("auction_id")
+    val auctionId: Uuid,
+
+    @SerialName("winner_id")
+    val winnerId: Uuid,
+
+    @SerialName("final_price")
+    val finalPrice: Long,
+
+    val status: String
+)
+
+fun DutchAuction.toDutchBuyResponse() = DutchBuyResponse(
+    auctionId = id,
+    winnerId = requireNotNull(winnerId),
+    finalPrice = requireNotNull(finalPrice),
+    status = status.name
+)
+
+
+
+
+

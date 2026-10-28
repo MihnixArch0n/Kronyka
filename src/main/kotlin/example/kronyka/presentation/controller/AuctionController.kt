@@ -1,5 +1,7 @@
 package example.kronyka.presentation.controller
 
+import org.springframework.security.core.Authentication
+import example.kronyka.domain.service.DutchAuctionService
 import example.kronyka.domain.model.VickreyAuction
 import example.kronyka.domain.service.AuctionService
 import example.kronyka.domain.service.VickreyAuctionService
@@ -18,7 +20,8 @@ import kotlin.uuid.Uuid
 @RequestMapping("/api")
 class AuctionController(
     private val auctionService: AuctionService,
-    private val vickreyAuctionService: VickreyAuctionService
+    private val vickreyAuctionService: VickreyAuctionService,
+    private val dutchAuctionService: DutchAuctionService
 ) {
     @Operation(
         summary = "Create a new Vickrey auction",
@@ -115,5 +118,75 @@ class AuctionController(
         )
 
         return ApiResponse.success(bid.toRevealResponse())
+    }
+    @Operation(summary = "Create a new Dutch auction")
+    @PostMapping("/auctions/dutch")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
+    fun createDutchAuction(
+        authentication: Authentication,
+        @Valid @RequestBody request: CreateDutchAuctionRequest
+    ): ApiResponse<CreateAuctionResponse> {
+
+        val sellerId = Uuid.parse(authentication.name)
+
+        val auction = dutchAuctionService.createDutchAuction(
+            sellerId = sellerId,
+            title = request.title!!,
+            startPrice = request.startPrice!!,
+            floorPrice = request.floorPrice!!,
+            stepDecrement = request.stepDecrement!!,
+            stepIntervalSeconds = request.stepIntervalSeconds!!,
+            startTime = request.startTime!!,
+            endTime = request.endTime!!
+        )
+
+        return ApiResponse.success(
+            CreateAuctionResponse(
+                auctionId = auction.id,
+                title = auction.title,
+                type = auction.type,
+                sellerId = auction.sellerId,
+                startTime = auction.startTime,
+                endTime = auction.endTime,
+                status = auction.status.name
+            )
+        )
+    }
+
+    @Operation(summary = "Get current Dutch auction price")
+    @GetMapping("/auctions/{id}/price")
+    @ResponseStatus(HttpStatus.OK)
+    fun getDutchPrice(
+        @PathVariable id: Uuid
+    ): ApiResponse<DutchPriceResponse> {
+
+        val price = dutchAuctionService.getCurrentPrice(id)
+
+        return ApiResponse.success(
+            DutchPriceResponse(
+                auctionId = id,
+                currentPrice = price
+            )
+        )
+    }
+
+    @Operation(summary = "Buy a Dutch auction at the current price")
+    @PostMapping("/auctions/{id}/buy")
+    @ResponseStatus(HttpStatus.OK)
+    @Transactional
+    fun buyDutchAuction(
+        @PathVariable id: Uuid,
+        authentication: Authentication
+    ): ApiResponse<DutchBuyResponse> {
+
+        val buyerId = Uuid.parse(authentication.name)
+
+        val auction = dutchAuctionService.buyNow(
+            auctionId = id,
+            buyerId = buyerId
+        )
+
+        return ApiResponse.success(auction.toDutchBuyResponse())
     }
 }

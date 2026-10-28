@@ -1,5 +1,6 @@
 package example.kronyka.presentation.advice
 
+import example.kronyka.domain.model.DutchPurchaseConflictException
 import example.kronyka.domain.model.AppException
 import example.kronyka.domain.model.AuctionCancellationException
 import example.kronyka.domain.model.AuctionException
@@ -89,6 +90,7 @@ class GlobalExceptionHandler {
         ex: AuctionException
     ): ResponseEntity<ApiResponse<Unit>> {
         val errorCode = when (ex) {
+            is DutchPurchaseConflictException -> ErrorCode.DUTCH_PURCHASE_CONFLICT
             is AuctionCancellationException -> ErrorCode.AUCTION_CANCELLATION_FAILED
             is AuctionNotFoundException -> ErrorCode.AUCTION_NOT_FOUND
             is BidNotFoundException -> ErrorCode.BID_NOT_FOUND
