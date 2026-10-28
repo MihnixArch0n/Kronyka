@@ -2,11 +2,15 @@ package example.kronyka.presentation.controller
 
 import example.kronyka.domain.model.AppException
 import example.kronyka.domain.repository.UserRepository
-
 import example.kronyka.domain.service.AuthService
 import example.kronyka.infrastructure.security.JwtTokenProvider
 import example.kronyka.presentation.dto.*
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.ExampleObject
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -30,6 +34,49 @@ class AuthController(
         summary = "Register a new user",
         description = "Creates a new user account with a unique username and hashed password"
     )
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(
+                responseCode = "201",
+                description = "User registered successfully",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = RegisterResponse::class))]
+            ),
+            SwaggerApiResponse(
+                responseCode = "400",
+                description = "Validation failed or malformed request payload",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "ValidationFailed",
+                                summary = "Field validation errors (blank username or short password)",
+                                value = OpenApiDocConstants.AUTH_400_VALIDATION_ERROR
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "409",
+                description = "Username already exists",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "UserAlreadyExists",
+                                summary = "Username already registered in the system",
+                                value = OpenApiDocConstants.AUTH_409_USER_EXISTS
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
     @PostMapping("/register")
     fun register(
         @Valid @RequestBody request: RegisterRequest
@@ -52,6 +99,49 @@ class AuthController(
     @Operation(
         summary = "User login",
         description = "Authenticates credentials and returns a Bearer JWT access token"
+    )
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(
+                responseCode = "200",
+                description = "Login successful, Bearer JWT token issued",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = LoginResponse::class))]
+            ),
+            SwaggerApiResponse(
+                responseCode = "400",
+                description = "Missing or blank login credentials",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "ValidationFailed",
+                                summary = "Username or password is required",
+                                value = OpenApiDocConstants.AUTH_400_VALIDATION_ERROR
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "401",
+                description = "Invalid credentials",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "InvalidCredentials",
+                                summary = "Incorrect username or password",
+                                value = OpenApiDocConstants.AUTH_401_INVALID_CREDENTIALS
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
     )
     @PostMapping("/login")
     fun login(
@@ -81,13 +171,55 @@ class AuthController(
         description = "Retrieves profile details of the authenticated user",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
+    @ApiResponses(
+        value = [
+            SwaggerApiResponse(
+                responseCode = "200",
+                description = "Profile retrieved successfully",
+                content = [Content(mediaType = "application/json", schema = Schema(implementation = UserProfileResponse::class))]
+            ),
+            SwaggerApiResponse(
+                responseCode = "401",
+                description = "Unauthenticated or invalid token",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "Unauthenticated",
+                                summary = "Missing or invalid JWT Bearer token",
+                                value = OpenApiDocConstants.AUTH_401_UNAUTHENTICATED
+                            )
+                        ]
+                    )
+                ]
+            ),
+            SwaggerApiResponse(
+                responseCode = "404",
+                description = "User not found",
+                content = [
+                    Content(
+                        mediaType = "application/json",
+                        schema = Schema(implementation = ApiResponse::class),
+                        examples = [
+                            ExampleObject(
+                                name = "UserNotFound",
+                                summary = "Authenticated user no longer exists",
+                                value = OpenApiDocConstants.AUTH_404_USER_NOT_FOUND
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
     @GetMapping("/me")
     fun getCurrentUser(
         @AuthenticationPrincipal userId: Uuid
     ): ResponseEntity<ApiResponse<UserProfileResponse>> = runBlocking {
         val user = userRepository.findById(userId)
             ?: throw AppException(ErrorCode.USER_NOT_FOUND, "User not found")
-
 
         val response = UserProfileResponse(
             userId = user.id,
@@ -99,5 +231,4 @@ class AuthController(
             ApiResponse.success(result = response)
         )
     }
-
 }

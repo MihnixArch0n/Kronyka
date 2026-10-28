@@ -40,8 +40,7 @@ Kronyka strictly follows **Clean Architecture (Hexagonal / Ports & Adapters)**:
 All in-depth specifications are maintained under the [`docs/`](docs/) directory:
 
 - 🏛️ **Architecture & Design**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Clean Architecture layers, sequence flows, and concurrency control.
-- 📡 **REST API Specification**: [docs/API_SPEC.md](docs/API_SPEC.md) — Detailed contract for all 11 endpoints, request/response models, and status codes.
-- ⚡ **Interactive API Reference & Testing (Scalar)**: Access `http://localhost:8080/scalar` (OpenAPI spec at `/v3/api-docs`).
+- ⚡ **Interactive API Reference & Testing (Scalar)**: Access `http://localhost:8080/scalar` (OpenAPI 3 JSON at `/v3/api-docs`) — Complete interactive contract for all 12 endpoints, request/response models, and status codes.
 - 🗄️ **Database Schema & DDL**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) — Tables (`users`, `auctions`, `vickrey_bids`), data types, constraints, and indexes.
 - 🤖 **AI Agents Context**: [docs/llm/](docs/llm/) — Context documentation and technical invariants for AI coding assistants (referenced in [AGENTS.md](AGENTS.md)).
 
@@ -54,8 +53,8 @@ This project strictly adheres to all requirements outlined in the course syllabu
 | Requirement | Implementation in Kronyka |
 | :--- | :--- |
 | **REST API (JSON)** | Standard RESTful API communicating via JSON over HTTP. |
-| **HTTP Methods** | Covers `POST`, `GET`, and `DELETE` across 11 endpoints. |
-| **API Documentation** | OpenAPI 3.0 / Swagger UI integrated at `/swagger-ui/index.html`. |
+| **HTTP Methods** | Covers `POST`, `GET`, and `DELETE` across 12 endpoints. |
+| **API Documentation** | OpenAPI 3.0 / Scalar API Reference integrated at `/scalar`. |
 | **Layered Architecture** | Clean Architecture: API -> Domain -> Data Access. Domain has zero framework/DB imports. |
 | **Data Access Layer** | JetBrains Exposed SQL DSL repository adapters connecting to PostgreSQL. |
 | **Centralized Security** | Stateless JWT authentication enforced centrally via `JwtAuthenticationFilter`. |
