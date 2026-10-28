@@ -130,11 +130,46 @@ object OpenApiDocConstants {
     // --- Dutch Auction Errors ---
     const val DUTCH_400_VALIDATION_ERROR = """{
   "code": 1005,
-  "message": "title: must not be blank; start_price: must be greater than 0"
+  "message": "title: must not be blank; start_price: must be greater than 0; step_decrement: must be greater than 0"
+}"""
+
+    const val DUTCH_400_INVALID_FLOOR_PRICE = """{
+  "code": 1007,
+  "message": "Invalid floor price"
+}"""
+
+    const val DUTCH_400_INVALID_TIMELINE = """{
+  "code": 1007,
+  "message": "End time must be after start time"
+}"""
+
+    const val DUTCH_400_NOT_DUTCH_TYPE = """{
+  "code": 2006,
+  "message": "Auction is not a Dutch auction"
+}"""
+
+    const val DUTCH_400_NOT_ACTIVE = """{
+  "code": 2006,
+  "message": "Dutch auction is not active"
+}"""
+
+    const val DUTCH_400_OUTSIDE_WINDOW = """{
+  "code": 2006,
+  "message": "Dutch auction is outside its active window"
+}"""
+
+    const val DUTCH_400_SELF_PURCHASE = """{
+  "code": 2006,
+  "message": "Seller cannot buy their own auction"
 }"""
 
     const val DUTCH_409_PURCHASE_CONFLICT = """{
   "code": 2012,
   "message": "Dutch auction has already been purchased or modified"
+}"""
+
+    const val DUTCH_409_ALREADY_SOLD = """{
+  "code": 2012,
+  "message": "Dutch auction has already been sold"
 }"""
 }

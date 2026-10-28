@@ -23,7 +23,7 @@ import kotlin.uuid.Uuid
 interface AuctionApi {
 
     @Operation(
-        summary = "List auctions",
+        summary = "[Common] List auctions",
         description = "Filters auctions by stored type and status, newest first; page is zero-based and size is 1 to 100"
     )
     @ApiResponses(
@@ -65,7 +65,7 @@ interface AuctionApi {
     ): ApiResponse<AuctionPageResponse>
 
     @Operation(
-        summary = "Create a new Vickrey auction",
+        summary = "[Vickrey Engine] Create a new Vickrey auction",
         description = "Creates a sealed-bid Vickrey auction with reserve price, commit window, and reveal window",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
@@ -130,7 +130,7 @@ interface AuctionApi {
     ): ApiResponse<CreateAuctionResponse>
 
     @Operation(
-        summary = "Get auction details",
+        summary = "[Common] Get auction details",
         description = "Retrieves public details of an auction by ID (concealing private bids during active phases)"
     )
     @ApiResponses(
@@ -184,7 +184,7 @@ interface AuctionApi {
     ): ApiResponse<AuctionDetailResponse>
 
     @Operation(
-        summary = "Cancel an auction",
+        summary = "[Common] Cancel an auction",
         description = "Cancels an auction before any commitments or bids have been placed",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
@@ -291,7 +291,7 @@ interface AuctionApi {
     ): ApiResponse<CancelAuctionResponse>
 
     @Operation(
-        summary = "Commit a blind bid (Vickrey Phase 1)",
+        summary = "[Vickrey Engine] Commit a blind bid (Phase 1)",
         description = "Submits a SHA-256 blind hash commitment and lockup deposit during the commit window",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
@@ -380,7 +380,7 @@ interface AuctionApi {
     ): ApiResponse<CommitBidResponse>
 
     @Operation(
-        summary = "Reveal a bid (Vickrey Phase 2)",
+        summary = "[Vickrey Engine] Reveal a bid (Phase 2)",
         description = "Reveals actual bid and secret salt to verify against blind hash during the reveal window",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
@@ -469,8 +469,8 @@ interface AuctionApi {
     ): ApiResponse<RevealBidResponse>
 
     @Operation(
-        summary = "Create a new Dutch auction",
-        description = "Creates a descending-price Dutch auction with start price, floor price, decrement steps, and intervals",
+        summary = "[Dutch Engine] Create a new Dutch auction",
+        description = "Creates a descending-price Dutch auction with start price, floor price, decrement steps, and step interval in seconds. Price declines automatically over elapsed intervals until floor price is reached or auction ends.",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
     @ApiResponses(
@@ -490,13 +490,18 @@ interface AuctionApi {
                         examples = [
                             ExampleObject(
                                 name = "ValidationFailed",
-                                summary = "Missing required fields, blank title, or negative prices",
+                                summary = "Missing required fields, blank title, non-positive start price, or non-positive step interval",
                                 value = OpenApiDocConstants.DUTCH_400_VALIDATION_ERROR
                             ),
                             ExampleObject(
+                                name = "InvalidFloorPrice",
+                                summary = "Floor price is negative or greater than starting price",
+                                value = OpenApiDocConstants.DUTCH_400_INVALID_FLOOR_PRICE
+                            ),
+                            ExampleObject(
                                 name = "InvalidTimeline",
-                                summary = "Start time is not before end time",
-                                value = OpenApiDocConstants.AUCTION_400_INVALID_TIME
+                                summary = "End time is not strictly after start time",
+                                value = OpenApiDocConstants.DUTCH_400_INVALID_TIMELINE
                             )
                         ]
                     )
@@ -529,8 +534,8 @@ interface AuctionApi {
     ): ApiResponse<CreateAuctionResponse>
 
     @Operation(
-        summary = "Get current Dutch auction price",
-        description = "Calculates and returns the current effective price of a Dutch auction based on elapsed time steps"
+        summary = "[Dutch Engine] Get current Dutch auction price",
+        description = "Calculates and returns the current effective price of a Dutch auction based on elapsed time steps: current_price = max(floor_price, start_price - floor((now - start_time) / step_interval) * step_decrement)"
     )
     @ApiResponses(
         value = [
@@ -541,7 +546,7 @@ interface AuctionApi {
             ),
             SwaggerApiResponse(
                 responseCode = "400",
-                description = "Malformed UUID parameter",
+                description = "Malformed UUID parameter or target auction is not a Dutch auction",
                 content = [
                     Content(
                         mediaType = "application/json",
@@ -551,6 +556,11 @@ interface AuctionApi {
                                 name = "InvalidUuidFormat",
                                 summary = "Auction ID is not a valid UUID string",
                                 value = OpenApiDocConstants.AUCTION_400_TYPE_MISMATCH
+                            ),
+                            ExampleObject(
+                                name = "NotDutchAuction",
+                                summary = "Target auction is not configured as a Dutch auction",
+                                value = OpenApiDocConstants.DUTCH_400_NOT_DUTCH_TYPE
                             )
                         ]
                     )
@@ -583,8 +593,8 @@ interface AuctionApi {
     ): ApiResponse<DutchPriceResponse>
 
     @Operation(
-        summary = "Buy a Dutch auction at the current price",
-        description = "Executes an immediate purchase of an active Dutch auction at its calculated current price, locking the sale via optimistic versioning",
+        summary = "[Dutch Engine] Buy a Dutch auction at current price",
+        description = "Executes an immediate purchase of an active Dutch auction at its calculated current price, locking the sale via optimistic versioning. Returns HTTP 409 Conflict if another buyer wins the purchase first.",
         security = [SecurityRequirement(name = "BearerAuth")]
     )
     @ApiResponses(
@@ -596,16 +606,31 @@ interface AuctionApi {
             ),
             SwaggerApiResponse(
                 responseCode = "400",
-                description = "Invalid request or auction state (e.g. self-purchase, not active, or outside active window)",
+                description = "Invalid request or auction state (e.g. self-purchase, not active, outside active window, or not a Dutch auction)",
                 content = [
                     Content(
                         mediaType = "application/json",
                         schema = Schema(implementation = ApiResponse::class),
                         examples = [
                             ExampleObject(
-                                name = "InvalidAuctionState",
-                                summary = "Auction is not active or window is closed",
-                                value = OpenApiDocConstants.COMMIT_400_INVALID_STATE
+                                name = "NotActive",
+                                summary = "Auction is not in ACTIVE status",
+                                value = OpenApiDocConstants.DUTCH_400_NOT_ACTIVE
+                            ),
+                            ExampleObject(
+                                name = "OutsideWindow",
+                                summary = "Auction has not started yet or has already expired",
+                                value = OpenApiDocConstants.DUTCH_400_OUTSIDE_WINDOW
+                            ),
+                            ExampleObject(
+                                name = "SelfPurchase",
+                                summary = "Seller is attempting to purchase their own auction",
+                                value = OpenApiDocConstants.DUTCH_400_SELF_PURCHASE
+                            ),
+                            ExampleObject(
+                                name = "NotDutchAuction",
+                                summary = "Target auction is not a Dutch auction",
+                                value = OpenApiDocConstants.DUTCH_400_NOT_DUTCH_TYPE
                             ),
                             ExampleObject(
                                 name = "InvalidUuidFormat",
@@ -652,16 +677,21 @@ interface AuctionApi {
             ),
             SwaggerApiResponse(
                 responseCode = "409",
-                description = "Dutch auction purchase conflict (already purchased by another buyer or version changed)",
+                description = "Dutch auction purchase conflict (already purchased or concurrent race condition)",
                 content = [
                     Content(
                         mediaType = "application/json",
                         schema = Schema(implementation = ApiResponse::class),
                         examples = [
                             ExampleObject(
-                                name = "DutchPurchaseConflict",
-                                summary = "Race lost or auction already sold",
+                                name = "VersionConflict",
+                                summary = "Race lost due to concurrent purchase version increment",
                                 value = OpenApiDocConstants.DUTCH_409_PURCHASE_CONFLICT
+                            ),
+                            ExampleObject(
+                                name = "AlreadySold",
+                                summary = "Auction was already marked as SOLD",
+                                value = OpenApiDocConstants.DUTCH_409_ALREADY_SOLD
                             )
                         ]
                     )
