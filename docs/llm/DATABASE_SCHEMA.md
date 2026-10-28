@@ -67,7 +67,7 @@ Stores blind commitments and revealed actual bids for Vickrey auctions.
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | `UUID` | `PRIMARY KEY` | Unique bid commitment ID |
-| `auction_id` | `UUID` | `NOT NULL, FK -> auction(id)` | Target auction (`ON DELETE CASCADE`) |
+| `auction_id` | `UUID` | `NOT NULL, FK -> auction(id)` | Target auction (`ON DELETE RESTRICT`) |
 | `bidder_id` | `UUID` | `NOT NULL, FK -> "user"(id)` | Bidder reference |
 | `blind_hash` | `VARCHAR(64)` | `NOT NULL` | SHA-256 hash in lowercase hex |
 | `lockup_deposit` | `BIGINT` | `NOT NULL` | Visible deposit in VNĐ (>= actual bid) |
