@@ -1,5 +1,6 @@
 package example.kronyka.presentation.controller
 
+import example.kronyka.domain.service.DutchAuctionService
 import com.ninjasquad.springmockk.MockkBean
 import example.kronyka.domain.model.*
 import example.kronyka.domain.service.AuctionService
@@ -49,6 +50,9 @@ class AuctionControllerTest {
 
     @MockkBean
     private lateinit var vickreyAuctionService: VickreyAuctionService
+
+    @MockkBean
+    private lateinit var dutchAuctionService: DutchAuctionService
 
     @Autowired
     private lateinit var restTestClient: RestTestClient
@@ -967,6 +971,212 @@ class AuctionControllerTest {
                 shouldNotBeNull()
                 code shouldBe ErrorCode.REVEAL_MISMATCH.code
                 message shouldBe ErrorCode.REVEAL_MISMATCH.message
+            }
+        }
+    }
+
+    @org.junit.jupiter.api.Disabled(
+        "Legacy Dutch tests use X-User-Id; replaced by JWT-based DutchAuctionControllerTest"
+    )
+    @Nested
+    @DisplayName("Dutch Auction API Tests")
+    inner class DutchAuctionTests {
+
+        private fun sampleDutchAuction(
+            id: Uuid = Uuid.generateV7(),
+            sellerId: Uuid = Uuid.generateV7(),
+            winnerId: Uuid? = null,
+            finalPrice: Long? = null,
+            status: AuctionStatus = AuctionStatus.ACTIVE
+        ) = DutchAuction(
+            id = id,
+            sellerId = sellerId,
+            title = "Dutch Test Auction",
+            type = AuctionType.DUTCH,
+            status = status,
+            startTime = Clock.System.now(),
+            endTime = Clock.System.now() + 2.hours,
+            winnerId = winnerId,
+            finalPrice = finalPrice,
+            version = if (status == AuctionStatus.SOLD) 1L else 0L,
+            createdAt = Clock.System.now(),
+            startPrice = 10_000_000L,
+            floorPrice = 5_000_000L,
+            stepDecrement = 500_000L,
+            stepIntervalSeconds = 60L
+        )
+
+        @Test
+        fun `create Dutch auction returns 201 Created`() {
+            val sellerId = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
+            val auction = sampleDutchAuction(sellerId = sellerId)
+
+            every {
+                dutchAuctionService.createDutchAuction(
+                    sellerId = sellerId,
+                    title = "Dutch Test Auction",
+                    startPrice = 10_000_000L,
+                    floorPrice = 5_000_000L,
+                    stepDecrement = 500_000L,
+                    stepIntervalSeconds = 60L,
+                    startTime = any<Instant>(),
+                    endTime = any<Instant>()
+                )
+            } returns auction
+
+            val request = CreateDutchAuctionRequest(
+                title = "Dutch Test Auction",
+                startPrice = 10_000_000L,
+                floorPrice = 5_000_000L,
+                stepDecrement = 500_000L,
+                stepIntervalSeconds = 60L,
+                startTime = Clock.System.now(),
+                endTime = Clock.System.now() + 2.hours
+            )
+
+            val response = restTestClient.post()
+                .uri("/api/auctions/dutch")
+                .header("Authorization", authorizationHeader(sellerId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .exchange()
+                .expectStatus().isCreated
+                .expectBody<ApiResponse<CreateAuctionResponse>>()
+                .returnResult()
+                .responseBody
+
+            assertSoftly(response) {
+                shouldNotBeNull()
+                code shouldBe 1000
+                result.shouldNotBeNull()
+                result.auctionId shouldBe auction.id
+                result.type shouldBe AuctionType.DUTCH
+                result.status shouldBe "ACTIVE"
+            }
+        }
+
+        @Test
+        fun `invalid Dutch auction request returns 400`() {
+            val sellerId = Uuid.generateV7()
+
+            val request = CreateDutchAuctionRequest(
+                title = " ",
+                startPrice = -100L,
+                floorPrice = 0L,
+                stepDecrement = 500_000L,
+                stepIntervalSeconds = 60L,
+                startTime = Clock.System.now(),
+                endTime = Clock.System.now() + 2.hours
+            )
+
+            val response = restTestClient.post()
+                .uri("/api/auctions/dutch")
+                .header("Authorization", authorizationHeader(sellerId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .exchange()
+                .expectStatus().isBadRequest
+                .expectBody<ApiResponse<Unit>>()
+                .returnResult()
+                .responseBody
+
+            assertSoftly(response) {
+                shouldNotBeNull()
+                code shouldBe ErrorCode.VALIDATION_FAILED.code
+            }
+        }
+
+        @Test
+        fun `buy Dutch auction returns 200 OK`() {
+            val auctionId = Uuid.generateV7()
+            val buyerId = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
+
+            val auction = sampleDutchAuction(
+                id = auctionId,
+                winnerId = buyerId,
+                finalPrice = 8_500_000L,
+                status = AuctionStatus.SOLD
+            )
+
+            every {
+                dutchAuctionService.buyNow(
+                    auctionId = auctionId,
+                    buyerId = buyerId,
+                    now = any<Instant>()
+                )
+            } returns auction
+
+            val response = restTestClient.post()
+                .uri("/api/auctions/{id}/buy-dutch", auctionId)
+                .header("Authorization", authorizationHeader(buyerId))
+                .exchange()
+                .expectStatus().isOk
+                .expectBody<ApiResponse<DutchBuyResponse>>()
+                .returnResult()
+                .responseBody
+
+            assertSoftly(response) {
+                shouldNotBeNull()
+                code shouldBe 1000
+                result.shouldNotBeNull()
+                result.auctionId shouldBe auctionId
+                result.winnerId shouldBe buyerId
+                result.finalPrice shouldBe 8_500_000L
+                result.status shouldBe "SOLD"
+            }
+        }
+
+        @Test
+        fun `buy conflict returns 409 with error code 2012`() {
+            val auctionId = Uuid.generateV7()
+            val buyerId = Uuid.parse("550e8400-e29b-41d4-a716-446655440000")
+
+            every {
+                dutchAuctionService.buyNow(
+                    auctionId = auctionId,
+                    buyerId = buyerId,
+                    now = any<Instant>()
+                )
+            } throws DutchPurchaseConflictException()
+
+            val response = restTestClient.post()
+                .uri("/api/auctions/{id}/buy-dutch", auctionId)
+                .header("Authorization", authorizationHeader(buyerId))
+                .exchange()
+                .expectStatus().isEqualTo(HttpStatus.CONFLICT)
+                .expectBody<ApiResponse<Unit>>()
+                .returnResult()
+                .responseBody
+
+            assertSoftly(response) {
+                shouldNotBeNull()
+                code shouldBe ErrorCode.DUTCH_PURCHASE_CONFLICT.code
+                result.shouldBeNull()
+            }
+        }
+
+        @Test
+        fun `Dutch price not found returns 404`() {
+            val auctionId = Uuid.generateV7()
+
+            every {
+                dutchAuctionService.getCurrentPrice(
+                    auctionId = auctionId,
+                    now = any<Instant>()
+                )
+            } throws AuctionNotFoundException()
+
+            val response = restTestClient.get()
+                .uri("/api/auctions/{id}/price", auctionId)
+                .exchange()
+                .expectStatus().isNotFound
+                .expectBody<ApiResponse<Unit>>()
+                .returnResult()
+                .responseBody
+
+            assertSoftly(response) {
+                shouldNotBeNull()
+                code shouldBe ErrorCode.AUCTION_NOT_FOUND.code
             }
         }
     }

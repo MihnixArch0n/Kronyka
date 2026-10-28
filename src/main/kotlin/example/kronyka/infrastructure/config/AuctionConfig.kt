@@ -6,6 +6,8 @@ import example.kronyka.domain.service.AuctionService
 import example.kronyka.domain.service.VickreyAuctionService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import example.kronyka.domain.service.DutchAuctionService
+import example.kronyka.domain.service.DutchPriceCalculator
 
 @Configuration
 class AuctionConfig {
@@ -20,4 +22,14 @@ class AuctionConfig {
         auctionRepository: AuctionRepository,
         bidRepository: VickreyBidRepository
     ): VickreyAuctionService = VickreyAuctionService(auctionRepository, bidRepository)
+    @Bean
+    fun dutchPriceCalculator(): DutchPriceCalculator =
+        DutchPriceCalculator()
+
+    @Bean
+    fun dutchAuctionService(
+        auctionRepository: AuctionRepository,
+        dutchPriceCalculator: DutchPriceCalculator
+    ): DutchAuctionService =
+        DutchAuctionService(auctionRepository, dutchPriceCalculator)
 }

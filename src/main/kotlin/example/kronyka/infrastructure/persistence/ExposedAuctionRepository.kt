@@ -20,6 +20,10 @@ import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
+import example.kronyka.domain.model.DutchAuction
+import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.greater
 
 private fun ResultRow.toDomain(): Auction =
     when (this[AuctionTable.type]) {
@@ -45,7 +49,22 @@ private fun ResultRow.toDomain(): Auction =
             },
             secondBidderId = this[AuctionTable.secondBidderId]
         )
-        AuctionType.DUTCH -> TODO("Not implemented yet")
+        AuctionType.DUTCH -> DutchAuction(
+            id = this[AuctionTable.id],
+            sellerId = this[AuctionTable.sellerId],
+            title = this[AuctionTable.title],
+            status = this[AuctionTable.status],
+            startTime = this[AuctionTable.startTime],
+            endTime = this[AuctionTable.endTime],
+            winnerId = this[AuctionTable.winnerId],
+            finalPrice = this[AuctionTable.finalPrice],
+            version = this[AuctionTable.version],
+            createdAt = this[AuctionTable.createdAt],
+            startPrice = checkNotNull(this[AuctionTable.startPrice]),
+            floorPrice = checkNotNull(this[AuctionTable.floorPrice]),
+            stepDecrement = checkNotNull(this[AuctionTable.stepDecrement]),
+            stepIntervalSeconds = checkNotNull(this[AuctionTable.stepIntervalSeconds])
+        )
     }
 
 @Repository
@@ -64,7 +83,6 @@ class ExposedAuctionRepository : AuctionRepository {
             .map { it.toDomain() }
         return AuctionPage(items, total)
     }
-
     @Transactional
     override fun findById(id: Uuid): Auction? =
         AuctionTable.selectAll().where {
@@ -72,6 +90,55 @@ class ExposedAuctionRepository : AuctionRepository {
         }
             .singleOrNull()
             ?.toDomain()
+    @Transactional
+    override fun tryCompleteDutchPurchase(
+        auctionId: Uuid,
+        buyerId: Uuid,
+        expectedVersion: Long,
+        finalPrice: Long,
+        now: Instant
+    ): Boolean {
+        if (finalPrice < 0) return false
+
+        val updatedRows = AuctionTable.update({
+            (AuctionTable.id eq auctionId) and
+                    (AuctionTable.type eq AuctionType.DUTCH) and
+                    (AuctionTable.status eq AuctionStatus.ACTIVE) and
+                    (AuctionTable.winnerId.isNull()) and
+                    (AuctionTable.version eq expectedVersion) and
+                    (AuctionTable.startTime lessEq now) and
+                    (AuctionTable.endTime greater now)
+        }) {
+            it[AuctionTable.status] = AuctionStatus.SOLD
+            it[AuctionTable.winnerId] = buyerId
+            it[AuctionTable.finalPrice] = finalPrice
+            it[AuctionTable.version] = expectedVersion + 1
+        }
+
+        return updatedRows == 1
+    }
+
+        @Transactional
+        override fun tryCancelDutchAuction(
+            auctionId: Uuid,
+            sellerId: Uuid,
+            expectedVersion: Long
+        ): Boolean {
+
+            val updatedRows = AuctionTable.update({
+                (AuctionTable.id eq auctionId) and
+                        (AuctionTable.type eq AuctionType.DUTCH) and
+                        (AuctionTable.sellerId eq sellerId) and
+                        (AuctionTable.status eq AuctionStatus.ACTIVE) and
+                        (AuctionTable.winnerId.isNull()) and
+                        (AuctionTable.version eq expectedVersion)
+            }) {
+                it[AuctionTable.status] = AuctionStatus.CANCELLED
+                it[AuctionTable.version] = expectedVersion + 1
+            }
+
+            return updatedRows == 1
+        }
 
     @Transactional
     override fun save(auction: Auction) {
@@ -88,7 +155,12 @@ class ExposedAuctionRepository : AuctionRepository {
                     it[AuctionTable.revealEndTime] = auction.revealEndTime
                     it[AuctionTable.secondBidderId] = auction.secondBidderId
                 }
-                else -> TODO("Not implemented yet")
+                is DutchAuction -> {
+                    it[AuctionTable.startPrice] = auction.startPrice
+                    it[AuctionTable.floorPrice] = auction.floorPrice
+                    it[AuctionTable.stepDecrement] = auction.stepDecrement
+                    it[AuctionTable.stepIntervalSeconds] = auction.stepIntervalSeconds
+                }
             }
             it[AuctionTable.startTime] = auction.startTime
             it[AuctionTable.finalPrice] = auction.finalPrice

@@ -50,6 +50,7 @@ dependencies {
     testImplementation(libs.kotest.assertionsCore)
     testImplementation(libs.mockk)
     testImplementation(libs.springmockk)
+    testImplementation("org.springframework.security:spring-security-test")
 }
 
 kotlin {

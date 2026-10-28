@@ -21,3 +21,7 @@ class UnauthorizedAuctionActionException : AuctionException()
 class InvalidReservePriceException : AuctionException()
 
 class InvalidAuctionTimeException : AuctionException()
+
+class DutchPurchaseConflictException(
+    message: String = "Dutch auction has already been purchased or modified"
+) : AuctionException(message)
