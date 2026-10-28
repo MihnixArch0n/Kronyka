@@ -251,4 +251,36 @@ class ExposedAuctionRepositoryTest {
         val limitedResults = auctionRepository.findExpiredUnsettledVickreyAuctions(beforeTime = now, limit = 1)
         limitedResults.size shouldBe 1
     }
+
+    @Test
+    fun `listing filters by dynamic REVEAL and EXPIRED phases`() {
+        val sellerId = insertTestUser()
+        val now = Clock.System.now()
+
+        // 1. Vickrey auction in REVEAL phase (commitEndTime in past, revealEndTime in future)
+        val revealAuction = createVickreyAuction(sellerId = sellerId).copy(
+            commitEndTime = now - 30.minutes,
+            revealEndTime = now + 30.minutes,
+            endTime = now + 1.hours,
+            status = AuctionStatus.COMMIT
+        ).also(auctionRepository::save)
+
+        // 2. Vickrey auction EXPIRED (revealEndTime in past, unsettled)
+        val expiredVickrey = createVickreyAuction(sellerId = sellerId).copy(
+            commitEndTime = now - 2.hours,
+            revealEndTime = now - 1.hours,
+            endTime = now - 1.hours,
+            status = AuctionStatus.COMMIT
+        ).also(auctionRepository::save)
+
+        // Query REVEAL
+        val revealPage = auctionRepository.findAll(AuctionType.VICKREY, AuctionStatus.REVEAL, 0L, 10)
+        revealPage.items.map { it.id }.contains(revealAuction.id) shouldBe true
+        revealPage.items.map { it.id }.contains(expiredVickrey.id) shouldBe false
+
+        // Query EXPIRED
+        val expiredPage = auctionRepository.findAll(null, AuctionStatus.EXPIRED, 0L, 10)
+        expiredPage.items.map { it.id }.contains(expiredVickrey.id) shouldBe true
+        expiredPage.items.map { it.id }.contains(revealAuction.id) shouldBe false
+    }
 }
