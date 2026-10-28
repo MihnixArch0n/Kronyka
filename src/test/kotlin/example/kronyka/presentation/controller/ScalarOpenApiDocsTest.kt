@@ -37,6 +37,31 @@ class ScalarOpenApiDocsTest {
     }
 
     @Test
+    fun `v3 api-docs endpoint strictly distinguishes public from protected endpoint security scopes`() {
+        mockMvc.perform(
+            get("/v3/api-docs")
+                .accept(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isOk)
+            // Global security MUST NOT be present at root level
+            .andExpect(jsonPath("$.security").doesNotExist())
+            // 5 Public Endpoints MUST NOT have security requirement
+            .andExpect(jsonPath("$.paths['/api/auth/register'].post.security").doesNotExist())
+            .andExpect(jsonPath("$.paths['/api/auth/login'].post.security").doesNotExist())
+            .andExpect(jsonPath("$.paths['/api/auctions'].get.security").doesNotExist())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].get.security").doesNotExist())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/price'].get.security").doesNotExist())
+            // 7 Protected Endpoints MUST require BearerAuth
+            .andExpect(jsonPath("$.paths['/api/auth/me'].get.security[0].BearerAuth").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions'].post.security[0].BearerAuth").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/dutch'].post.security[0].BearerAuth").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}'].delete.security[0].BearerAuth").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/commit'].post.security[0].BearerAuth").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/reveal'].post.security[0].BearerAuth").exists())
+            .andExpect(jsonPath("$.paths['/api/auctions/{id}/buy-dutch'].post.security[0].BearerAuth").exists())
+    }
+
+    @Test
     fun `v3 api-docs endpoint documents all 12 implemented endpoints with paths and methods`() {
         mockMvc.perform(
             get("/v3/api-docs")
