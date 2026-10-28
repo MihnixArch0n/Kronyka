@@ -4,7 +4,7 @@ WORKDIR /build
 
 COPY gradlew gradlew.bat settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
-RUN ./gradlew dependencies --no-daemon || true
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon || true
 
 COPY src ./src
 RUN ./gradlew bootJar --no-daemon -x test
@@ -16,12 +16,16 @@ FROM eclipse-temurin:25-jre-alpine AS runner
 WORKDIR /app
 
 RUN apk add --no-cache curl \
-    && addgroup -S kronyka && adduser -S kronyka -G kronyka
+    && addgroup -S kronyka && adduser -S kronyka -G kronyka \
+    && chown -R kronyka:kronyka /app
 
 COPY --from=builder --chown=kronyka:kronyka /build/extracted/dependencies/ ./
 COPY --from=builder --chown=kronyka:kronyka /build/extracted/spring-boot-loader/ ./
 COPY --from=builder --chown=kronyka:kronyka /build/extracted/snapshot-dependencies/ ./
 COPY --from=builder --chown=kronyka:kronyka /build/extracted/application/ ./
+
+ENV SERVER_PORT=8080
+ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 
 # Execute AOT Cache training run in the runtime container environment
 RUN java -XX:AOTCacheOutput=app.aot \
@@ -32,12 +36,6 @@ RUN java -XX:AOTCacheOutput=app.aot \
     && chown kronyka:kronyka app.aot
 
 USER kronyka
-
-ENV SERVER_PORT=8080
-ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 EXPOSE 8080
-
-HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
-  CMD curl -f http://localhost:${SERVER_PORT}/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-XX:AOTCache=app.aot", "-jar", "application.jar"]

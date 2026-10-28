@@ -46,24 +46,6 @@ All in-depth specifications are maintained under the [`docs/`](docs/) directory:
 
 ---
 
-## 4. Course Requirements Compliance (Phase 1)
-
-This project strictly adheres to all requirements outlined in the course syllabus:
-
-| Requirement | Implementation in Kronyka |
-| :--- | :--- |
-| **REST API (JSON)** | Standard RESTful API communicating via JSON over HTTP. |
-| **HTTP Methods** | Covers `POST`, `GET`, and `DELETE` across 12 endpoints. |
-| **API Documentation** | OpenAPI 3.0 / Scalar API Reference integrated at `/scalar`. |
-| **Layered Architecture** | Clean Architecture: API -> Domain -> Data Access. Domain has zero framework/DB imports. |
-| **Data Access Layer** | JetBrains Exposed SQL DSL repository adapters connecting to PostgreSQL. |
-| **Centralized Security** | Stateless JWT authentication enforced centrally via `JwtAuthenticationFilter`. |
-| **Protected Endpoints** | Multiple protected `POST`, `GET`, and `DELETE` endpoints requiring Bearer tokens. |
-| **Containerization** | Multi-stage `Containerfile` and `compose.yaml` supporting Docker and Podman. |
-| **Load Testing** | Pre-configured k6 benchmark scripts for baseline measurement on Kaggle CPU. |
-
----
-
 ## 5. How to Run the Application
 
 You can launch Kronyka using either **Docker / Podman** (all-in-one) or **Gradle** (local development).
