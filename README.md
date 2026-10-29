@@ -173,7 +173,46 @@ docker compose up -d postgres
 
 ---
 
-## 6. Detailed Documentation Index
+## 6. Performance Benchmarking & Load Testing (Phase 1 Baseline)
+
+### 6.1. Test Environment Specification
+- **Hardware & Host**: Kaggle Cloud Container - 4 vCPUs, 30 GB RAM.
+- **Runtimes & Stack**: Eclipse Temurin OpenJDK 25 (Java 25 with Virtual Threads enabled), Spring Boot 4.1.1, PostgreSQL 18.
+- **Database Driver**: JetBrains Exposed 1.5.0 SQL DSL with default HikariCP connection pool.
+
+---
+
+### 6.2. Macro System Performance Comparison (20 vs 100 vs 500 vs 1000 VUs)
+
+| Load Level | Virtual Users | Total Requests (1 min) | Throughput (RPS) | Latency Median | Latency Avg | Latency P95 | Latency P99 | Assertion Success Rate |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Baseline Load** | **20 VUs** | 6,300 | **101.6 req/s** | 30.61 ms | 162.84 ms | **721.54 ms** | 1.15 s | **100.00%** (3,780 / 3,780) |
+| **Normal High Load** | **100 VUs** | 7,556 | **118.8 req/s** | 370.00 ms | 796.85 ms | **2.95 s** | 5.33 s | **100.00%** (4,532 / 4,532) |
+| **Stress Load** | **500 VUs** | 8,498 | **115.5 req/s** | 466.07 ms | 4.11 s | **20.68 s** | 40.41 s | **99.67%** (4,964 / 4,980) |
+| **Saturation Limit** | **1000 VUs** | 5,382 | **59.8 req/s** | 1.29 s | 13.72 s | **59.78 s** | 60.00 s | **84.96%** (2,786 / 3,279) |
+
+---
+
+### 6.3. Granular Per-Endpoint Latency Breakdown
+
+| # | Endpoint | 20 VUs (Avg / P95) | 100 VUs (Avg / P95) | 500 VUs (Avg / P95) | 1000 VUs (Avg / P95) |
+| :---: | :--- | :---: | :---: | :---: | :---: |
+| **1** | `/api/auth/register` | 634.3 ms / 1.34 s | 2.01 s / 6.64 s | 17.38 s / 49.17 s | 33.08 s / 59.91 s |
+| **2** | `/api/auth/login` | 408.2 ms / 921.1 ms | 1.07 s / 4.14 s | 7.80 s / 30.61 s | 16.05 s / 59.40 s |
+| **3** | `/api/auth/me` | 113.1 ms / 366.6 ms | 551.2 ms / 2.57 s | 2.73 s / 14.16 s | 5.79 s / 30.03 s |
+| **4** | `/api/auctions` | 132.5 ms / 435.9 ms | 699.5 ms / 2.58 s | 3.97 s / 16.26 s | 6.97 s / 30.14 s |
+| **5** | `/api/auctions` (Vickrey) | 72.6 ms / 257.3 ms | 619.6 ms / 2.41 s | 3.36 s / 15.38 s | 6.32 s / 30.26 s |
+| **6** | `/api/auctions/{id}` | 54.0 ms / 210.4 ms | 663.6 ms / 2.50 s | 2.67 s / 12.98 s | 7.26 s / 30.37 s |
+| **7** | `/api/auctions/{id}/commit` | 41.3 ms / 131.1 ms | 549.7 ms / 2.16 s | 2.12 s / 9.46 s | 5.94 s / 30.17 s |
+| **8** | `/api/auctions/{id}/reveal` | 21.6 ms / 72.2 ms | 642.7 ms / 2.80 s | 2.44 s / 11.51 s | 5.00 s / 22.71 s |
+| **9** | `/api/auctions/{id}` (Cancel) | 22.0 ms / 55.2 ms | 641.4 ms / 2.75 s | 1.08 s / 4.73 s | 10.80 s / 30.56 s |
+| **10**| `/api/auctions/dutch` | 15.8 ms / 34.9 ms | 640.2 ms / 2.34 s | 2.49 s / 9.19 s | 12.95 s / 30.23 s |
+| **11**| `/api/auctions/{id}/price` | **8.1 ms / 20.9 ms** | **526.9 ms / 2.44 s** | **1.36 s / 5.89 s** | **2.24 s / 10.60 s** |
+| **12**| `/api/auctions/{id}/buy-dutch` | **14.5 ms / 30.5 ms** | **474.7 ms / 1.98 s** | **1.17 s / 5.12 s** | **2.72 s / 12.87 s** |
+
+---
+
+## 7. Detailed Documentation Index
 
 For in-depth architectural specifications and implementation details, refer to:
 - 🏛️ **System Architecture & Sequence Flows**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Layer boundaries, sequence diagrams, and concurrency control.
