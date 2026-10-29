@@ -1,49 +1,37 @@
-# System Architecture & Technical Design
+# System Architecture
 
-Kronyka is designed as a decoupled, layered backend service following **Clean Architecture** (Hexagonal / Ports & Adapters) principles. This ensures business domain independence from the web framework, persistence layer, and external libraries.
+🌐 **Language**: [English (Current)](ARCHITECTURE.md) | [🇻🇳 Tiếng Việt](ARCHITECTURE.vi.md)
 
----
-
-## 1. Architectural Layers & Separation of Concerns
+Kronyka is organized into 3 layers following **Clean Architecture** (dependencies point inward):
 
 ```
 example.kronyka/
-│
-├── domain/                                  # 1. DOMAIN LAYER (Pure Business Core)
-│   ├── model/                               # Entities, value objects, enums, exceptions
-│   ├── repository/                          # Repository ports (pure Kotlin interfaces)
-│   └── service/                             # Domain engines & use case workflows
-│
-├── presentation/                            # 2. PRESENTATION LAYER (Inbound Web Adapter)
-│   ├── controller/                          # Spring REST Controllers (JSON API)
-│   ├── dto/                                 # Request/Response DTOs & Validation
-│   └── advice/                              # Global exception handlers & RFC error models
-│
-└── infrastructure/                          # 3. INFRASTRUCTURE LAYER (Outbound Adapters)
-    ├── persistence/                         # Exposed SQL DSL tables & repository adapters
-    ├── security/                            # Centralized JWT authentication filter & config
-    └── config/                              # Spring Boot & Exposed database configuration
+├── domain/                  # 1. CORE DOMAIN (Pure Kotlin)
+│   ├── model/               #    Entities, value objects, enums, exceptions
+│   ├── repository/          #    Repository interfaces (pure Kotlin, no framework code)
+│   └── service/             #    Auction engines (Vickrey, Dutch)
+├── presentation/            # 2. PRESENTATION (Handles HTTP web requests)
+│   ├── controller/          #    REST Controllers
+│   ├── dto/                 #    Request/Response DTOs and validation rules
+│   └── advice/              #    Global error handlers (@RestControllerAdvice)
+└── infrastructure/          # 3. INFRASTRUCTURE (Database & external services)
+    ├── persistence/         #    Database tables and queries (Exposed SQL DSL)
+    ├── security/            #    JWT authentication filter and Spring Security
+    ├── scheduler/           #    Background worker for auction settlement
+    └── config/              #    Spring Boot, database, and OpenAPI setup
 ```
 
-### Layer Dependency Rule
-Dependencies flow **strictly inward**:
-`Presentation -> Domain <- Infrastructure`
-
-- **Domain Layer**:
-  - Independent of Spring Web, Exposed SQL, JDBC, or any framework annotations.
-  - Fully unit-testable without database or web container mocks.
-- **Presentation Layer**:
-  - Exposes REST endpoints conforming to HTTP/JSON standards.
-  - Applies input validation (`@Valid`, Jakarta constraints) and maps domain exceptions to standard HTTP status codes.
-- **Infrastructure Layer**:
-  - Implements the repository ports defined in `domain/repository/` using JetBrains Exposed SQL DSL queries.
-  - Manages database transactions, connections, and security middleware.
+### Dependency Rule
+Dependencies flow **strictly inward**: `Presentation -> Domain <- Infrastructure`
+- **Domain**: Pure business rules written in Kotlin. Never imports Spring, Exposed, JDBC, or web annotations.
+- **Presentation**: Accepts HTTP requests, validates inputs, calls domain services, and returns JSON responses.
+- **Infrastructure**: Implements repository interfaces using Exposed SQL DSL, manages database connections, and sets up security.
 
 ---
 
-## 2. Interaction & Sequence Flows
+## 1. Sequence Diagrams
 
-### 2.1. Vickrey Sealed-Bid Engine (3-Phase Commit-Reveal)
+### 1.1. Vickrey Sealed-Bid Auction
 
 ```mermaid
 sequenceDiagram
@@ -54,7 +42,7 @@ sequenceDiagram
     participant Repo as Infrastructure (ExposedVickreyBidRepository)
     participant DB as PostgreSQL
 
-    Note over Bidder: Phase 1: COMMIT (blind_hash = SHA256(bid + "_" + salt))
+    Note over Bidder: Step 1: COMMIT (Secret bid)
     Bidder->>Controller: POST /api/auctions/{id}/commit {blind_hash, lockup_deposit}
     Controller->>Engine: submitCommitment(auctionId, bidderId, blindHash, deposit)
     Engine->>Repo: upsertCommitment(bidRecord)
@@ -64,14 +52,14 @@ sequenceDiagram
     Engine-->>Controller: BidResult
     Controller-->>Bidder: 201 Created
 
-    Note over Bidder: Phase 2: REVEAL (Send actual_bid & secret_salt)
+    Note over Bidder: Step 2: REVEAL (Open the bid)
     Bidder->>Controller: POST /api/auctions/{id}/reveal {actual_bid, secret_salt}
     Controller->>Engine: revealBid(auctionId, bidderId, actualBid, salt)
     Engine->>Engine: Verify SHA256(actualBid + "_" + salt) == blindHash
-    alt Hash Mismatch or actualBid > deposit
+    alt Hash mismatch or actualBid > deposit
         Engine-->>Controller: Throw RevealMismatchException
-        Controller-->>Bidder: 400 Bad Request (REVEAL_MISMATCH - Retry Allowed)
-    else Hash Valid
+        Controller-->>Bidder: 400 Bad Request (REVEAL_MISMATCH - Retry allowed)
+    else Valid
         Engine->>Repo: markRevealed(auctionId, bidderId, actualBid)
         Repo->>DB: UPDATE vickrey_bids SET is_revealed=true, actual_bid=...
         DB-->>Repo: OK
@@ -81,13 +69,13 @@ sequenceDiagram
     end
 ```
 
-### 2.2. Step-Decay Dutch Auction (Concurrency Control)
+### 1.2. Dutch Auction ("Buy Now" Race)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor BuyerA as Buyer A (Wins Race)
-    actor BuyerB as Buyer B (Loses Race)
+    actor BuyerA as Buyer A (First)
+    actor BuyerB as Buyer B (Slightly late)
     participant Controller as Presentation (DutchController)
     participant Engine as Domain (DutchAuctionEngine)
     participant Repo as Infrastructure (ExposedAuctionRepository)
@@ -95,43 +83,43 @@ sequenceDiagram
 
     BuyerA->>Controller: POST /api/auctions/{id}/buy-dutch
     BuyerB->>Controller: POST /api/auctions/{id}/buy-dutch
+
     Controller->>Engine: buyNow(auctionId, buyerA)
-    Engine->>Engine: Calculate P(t) via stateless formula
+    Engine->>Engine: Calculate current price in memory
     Engine->>Repo: atomicPurchase(auctionId, buyerA, price, expectedVersion)
     Repo->>DB: UPDATE auctions SET status='SOLD', winner_id=A, version=v+1 WHERE version=v
     DB-->>Repo: 1 row affected
     Repo-->>Engine: Success
     Engine-->>Controller: PurchaseResult
-    Controller-->>BuyerA: 200 OK {status: "SOLD", winner: "Buyer A"}
+    Controller-->>BuyerA: 200 OK (Bought!)
 
     Controller->>Engine: buyNow(auctionId, buyerB)
-    Engine->>Engine: Calculate P(t) via stateless formula
+    Engine->>Engine: Calculate current price in memory
     Engine->>Repo: atomicPurchase(auctionId, buyerB, price, expectedVersion)
     Repo->>DB: UPDATE auctions SET status='SOLD', winner_id=B, version=v+1 WHERE version=v
-    DB-->>Repo: 0 rows affected (version mismatch)
+    DB-->>Repo: 0 rows affected (version already incremented)
     Repo-->>Engine: 0 rows affected
     Engine-->>Controller: Throw ConcurrencyConflictException
-    Controller-->>BuyerB: 409 Conflict {"error": "AUCTION_ALREADY_SOLD"}
+    Controller-->>BuyerB: 409 Conflict (Already sold)
 ```
 
 ---
 
-## 3. Concurrency & Integrity Mechanisms
+## 2. Concurrency & Database Rules
 
 1. **Optimistic Locking (`version`)**:
-   - The Dutch engine leverages optimistic concurrency control directly in SQL to serialize competing "Buy Now" requests without locking read queries.
-2. **Atomic Upserts for Vickrey Commitments**:
-   - A unique constraint on `(auction_id, bidder_id)` allows bidders to update their deposit commitments safely without race conditions.
-3. **Stateless Step Math**:
-   - Price calculation is completely functional and stateless in memory, removing background timer updates and database write amplification.
+   - The Dutch engine checks `version` when someone clicks buy. If multiple people buy at the exact same time, only the first request updates the row; the others get `409 Conflict`.
+2. **Safe Updates for Vickrey Commitments**:
+   - `UNIQUE(auction_id, bidder_id)` allows bidders to update their deposit safely without creating duplicate bids or race conditions.
+3. **Stateless Price Calculation**:
+   - The Dutch price is computed directly from time in memory. There is no background job needed to update prices in the database every second.
 
 ---
 
-## 4. Multi-Layer Testing Architecture
+## 3. Testing Strategy
 
-| Layer | Runner / Framework | Style / Annotations | Assertions | Isolation Strategy |
-| :--- | :--- | :--- | :--- | :--- |
-| **Domain** | **Kotest** | `BehaviorSpec` (BDD scenarios)<br>`FunSpec` (math/hashing) | **Kotest Assertions** (`shouldBe`, `shouldThrow`) | In-memory fake repositories (`mutableMapOf`). Zero framework context. |
-| **Presentation** | **JUnit 5** | `@Test`, `@Nested`, `@WebMvcTest` | **Kotest Assertions** (`shouldBe`, `shouldNotBeNull`) | Spring `MockMvc` + MockK (`@MockkBean`) mocking domain services. |
-| **Infrastructure** | **JUnit 5** | `@Test`, `@BeforeEach` | **Kotest Assertions** (`shouldBe`, `shouldHaveSize`) | H2 In-Memory / Testcontainers PostgreSQL with transaction rollback. |
-
+| Layer | Framework | Style | Assertions | How it runs |
+|---|---|---|---|---|
+| **Domain** | **Kotest** | `BehaviorSpec`, `FunSpec` | `shouldBe`, `shouldThrow` | Uses in-memory fake repositories. No Spring context or database needed (runs in milliseconds). |
+| **Presentation** | **JUnit 5** | `@Test`, `@WebMvcTest` | `shouldBe`, `shouldNotBeNull` | Spring `MockMvc` + MockK to test controllers and validation in isolation. |
+| **Infrastructure** | **JUnit 5** | `@Test` | `shouldBe`, `shouldHaveSize` | In-memory database with transaction rollback to verify SQL queries. |

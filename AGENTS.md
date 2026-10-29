@@ -44,13 +44,14 @@
 
 ---
 
-## 3. Detailed Specifications Index (`docs/llm/`)
+## 3. Detailed Specifications Index (`docs/`)
 
 When implementing or modifying features, consult the detailed specifications:
-- **Architecture & Sequence Diagrams**: [docs/llm/ARCHITECTURE.md](docs/llm/ARCHITECTURE.md)
+- **Architecture & Sequence Diagrams**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **REST API Endpoints & Payloads**: Code-first OpenAPI specs in [AuctionApi.kt](src/main/kotlin/example/kronyka/presentation/controller/AuctionApi.kt) & interactive Scalar UI at `/scalar` (OpenAPI 3 JSON at `/v3/api-docs`)
-- **Database Schema & DDL**: [docs/llm/DATABASE_SCHEMA.md](docs/llm/DATABASE_SCHEMA.md)
-- **Domain Engines & Formulas**: [docs/llm/DOMAIN_ENGINES.md](docs/llm/DOMAIN_ENGINES.md)
+- **Database Schema & DDL**: [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md)
+- **Domain Engines & Formulas**: [docs/DOMAIN_ENGINES.md](docs/DOMAIN_ENGINES.md)
+- **Deployment & Container Specs**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ---
 
