@@ -1,9 +1,13 @@
 package example.kronyka.infrastructure.config
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies.SNAKE_CASE
 import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverter
 import io.swagger.v3.core.converter.ModelConverterContext
 import io.swagger.v3.core.converter.ModelConverters
+import io.swagger.v3.core.jackson.ModelResolver
+import io.swagger.v3.core.util.Json
+import io.swagger.v3.core.util.Json31
 import io.swagger.v3.oas.models.media.DateTimeSchema
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.media.UUIDSchema
@@ -16,17 +20,36 @@ import kotlin.uuid.Uuid
 /**
  * Global OpenAPI ModelConverter for SpringDoc and Scalar.
  *
- * Intercepts Kotlin's standard library types (kotlin.uuid.Uuid and kotlin.time.Instant)
- * and resolves them as OpenAPI scalar schemas (format: "uuid" and format: "date-time")
- * so that Scalar UI correctly displays string input fields instead of introspecting
- * their internal fields as complex objects.
+ * 1. Intercepts Kotlin's standard library types (kotlin.uuid.Uuid and kotlin.time.Instant)
+ *    and resolves them as OpenAPI scalar schemas (format: "uuid" and format: "date-time")
+ *    so that Scalar UI correctly displays string input fields instead of introspecting
+ *    their internal fields as complex objects.
+ * 2. Configures ModelResolver with SNAKE_CASE naming strategy on isolated converter mappers,
+ *    ensuring all DTO schemas in Scalar / OpenAPI display fields in snake_case without
+ *    breaking root OpenAPI document structure.
  */
 @Component
 class KotlinTypesOpenApiModelConverter : ModelConverter {
 
     @PostConstruct
     fun register() {
-        ModelConverters.getInstance().addConverter(this)
+        for (isOpenApi31 in listOf(false, true)) {
+            val modelConverters = ModelConverters.getInstance(isOpenApi31)
+            val existing = ArrayList(modelConverters.converters)
+            for (converter in existing) {
+                if (converter is ModelResolver) {
+                    modelConverters.removeConverter(converter)
+                }
+            }
+            val mapper = (if (isOpenApi31) Json31.mapper() else Json.mapper()).copy().apply {
+                propertyNamingStrategy = SNAKE_CASE
+            }
+            val modelResolver = ModelResolver(mapper).apply {
+                openapi31(isOpenApi31)
+            }
+            modelConverters.addConverter(modelResolver)
+            modelConverters.addConverter(this)
+        }
     }
 
     override fun resolve(

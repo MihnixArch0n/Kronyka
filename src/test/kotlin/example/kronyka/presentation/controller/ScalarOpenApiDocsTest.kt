@@ -183,10 +183,10 @@ class ScalarOpenApiDocsTest {
                 .accept(MediaType.APPLICATION_JSON)
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.components.schemas['CreateVickreyAuctionRequest'].properties.startTime.format").value("date-time"))
-            .andExpect(jsonPath("$.components.schemas['CreateAuctionResponse'].properties.auctionId.format").value("uuid"))
-            .andExpect(jsonPath("$.components.schemas['AuctionDetailResponse'].properties.createdAt.format").value("date-time"))
-            .andExpect(jsonPath("$.components.schemas['AuctionDetailResponse'].properties.sellerId.format").value("uuid"))
+            .andExpect(jsonPath("$.components.schemas['CreateVickreyAuctionRequest'].properties.start_time.format").value("date-time"))
+            .andExpect(jsonPath("$.components.schemas['CreateAuctionResponse'].properties.auction_id.format").value("uuid"))
+            .andExpect(jsonPath("$.components.schemas['AuctionDetailResponse'].properties.created_at.format").value("date-time"))
+            .andExpect(jsonPath("$.components.schemas['AuctionDetailResponse'].properties.seller_id.format").value("uuid"))
     }
 
     @Test
