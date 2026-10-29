@@ -1,8 +1,9 @@
-package example.kronyka.domain.service
+package example.kronyka.infrastructure.security
 
 import example.kronyka.domain.model.AppException
 import example.kronyka.domain.model.User
 import example.kronyka.domain.repository.UserRepository
+import example.kronyka.domain.service.AuthService
 import example.kronyka.presentation.dto.ErrorCode
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -47,7 +48,6 @@ class AuthServiceImpl(
         if (!passwordEncoder.matches(password, user.passwordHash)) {
             throw AppException(ErrorCode.INVALID_CREDENTIALS)
         }
-
 
         return user
     }
