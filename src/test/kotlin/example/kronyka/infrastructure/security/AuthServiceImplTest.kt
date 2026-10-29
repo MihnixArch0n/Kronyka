@@ -1,10 +1,10 @@
-package example.kronyka.domain.service
+package example.kronyka.infrastructure.security
 
 import example.kronyka.domain.model.AppException
 import example.kronyka.domain.model.User
 import example.kronyka.domain.repository.UserRepository
+import example.kronyka.domain.service.AuthService
 import example.kronyka.presentation.dto.ErrorCode
-
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -130,7 +130,6 @@ class AuthServiceImplTest {
         assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.errorCode)
         assertEquals("Invalid username or password", exception.message)
     }
-
 
     @Test
     fun `login throws IllegalArgumentException when credentials are blank`() {
