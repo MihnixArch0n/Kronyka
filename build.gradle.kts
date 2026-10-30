@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "example"
-version = "0.0.1"
+version = "0.0.3"
 description = "Kronyka"
 
 java {
